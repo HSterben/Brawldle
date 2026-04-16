@@ -36,7 +36,7 @@
   {"name":"Sidra","gender":"Female","weapon1":"Cannon","weapon2":"Sword","year":2017,"stats":[7,3,8,4]},
   {"name":"Xull","gender":"Male","weapon1":"Axe","weapon2":"Cannon","year":2017,"stats":[9,4,5,4]},
   {"name":"Kaya","gender":"Female","weapon1":"Bow","weapon2":"Spear","year":2018,"stats":[4,4,7,7]},
-  {"name":"Isaiah","gender":"Male","weapon1":"Cannon","weapon2":"Rocket Lance","year":2018,"stats":[5,6,7,4]},
+  {"name":"Isaiah","gender":"Male","weapon1":"Cannon","weapon2":"Blasters","year":2018,"stats":[5,6,7,4]},
   {"name":"Jiro","gender":"Male","weapon1":"Scythe","weapon2":"Sword","year":2018,"stats":[5,7,3,7]},
   {"name":"Lin Fei","gender":"Female","weapon1":"Cannon","weapon2":"Katars","year":2018,"stats":[3,8,4,7]},
   {"name":"Zariel","gender":"Non-binary","weapon1":"Bow","weapon2":"Gauntlets","year":2018,"stats":[7,4,7,4]},
