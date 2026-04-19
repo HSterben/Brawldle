@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://brawldle-game.vercel.app/sitemap.xml
