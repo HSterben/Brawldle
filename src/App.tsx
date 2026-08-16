@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import gsap from "gsap";
+import { useGSAP } from "@gsap/react";
 import legendsData from "../data/legends.json";
+
+gsap.registerPlugin(useGSAP);
 
 type Legend = {
   name: string;
@@ -133,6 +137,13 @@ function App() {
   const [gameOver, setGameOver] = useState(false);
   const [won, setWon] = useState(false);
   const [countdown, setCountdown] = useState(() => formatCountdown(msUntilNextLocalMidnight()));
+  const [modeSwitching, setModeSwitching] = useState(false);
+
+  const appRef = useRef<HTMLDivElement>(null);
+  const modeStageRef = useRef<HTMLDivElement>(null);
+  const modeFlashRef = useRef<HTMLDivElement>(null);
+  const modeDirRef = useRef(1);
+  const prevModeRef = useRef<GameMode | null>(null);
 
   const columns = DIFFICULTY_COLUMNS[difficulty];
 
@@ -201,6 +212,109 @@ function App() {
     setShakeInput(false);
     setActiveIndex(0);
   }, [mode, difficulty, dateKey]);
+
+  const { contextSafe } = useGSAP({ scope: appRef });
+
+  useGSAP(
+    () => {
+      const stage = modeStageRef.current;
+      const flash = modeFlashRef.current;
+      const isFirst = prevModeRef.current === null;
+      const modeChanged = prevModeRef.current !== null && prevModeRef.current !== mode;
+      prevModeRef.current = mode;
+
+      if (!stage || isFirst || !modeChanged) {
+        if (stage) gsap.set(stage, { clearProps: "transform,opacity,filter" });
+        if (flash) gsap.set(flash, { autoAlpha: 0, scale: 1.1 });
+        setModeSwitching(false);
+        return;
+      }
+
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduced) {
+        gsap.set(stage, { clearProps: "transform,opacity,filter" });
+        if (flash) gsap.set(flash, { autoAlpha: 0 });
+        setModeSwitching(false);
+        return;
+      }
+
+      const dir = modeDirRef.current;
+      const tl = gsap.timeline({
+        onComplete: () => setModeSwitching(false),
+      });
+
+      if (flash) {
+        tl.fromTo(
+          flash,
+          { autoAlpha: 0, scale: 1.18, y: 18 * dir },
+          { autoAlpha: 1, scale: 1, y: 0, duration: 0.28, ease: "power3.out" },
+        ).to(flash, {
+          autoAlpha: 0,
+          scale: 0.92,
+          y: -12 * dir,
+          duration: 0.28,
+          ease: "power2.in",
+          delay: 0.12,
+        });
+      }
+
+      tl.fromTo(
+        stage,
+        {
+          opacity: 0,
+          x: 48 * dir,
+          y: 16,
+          rotateY: -8 * dir,
+          scale: 0.94,
+          filter: "blur(10px)",
+        },
+        {
+          opacity: 1,
+          x: 0,
+          y: 0,
+          rotateY: 0,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.55,
+          ease: "power3.out",
+        },
+        "-=0.18",
+      );
+    },
+    { dependencies: [mode], scope: appRef },
+  );
+
+  const requestMode = contextSafe((next: GameMode) => {
+    if (next === mode || modeSwitching) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const dir = next === "unlimited" ? 1 : -1;
+    modeDirRef.current = dir;
+
+    if (reduced) {
+      setMode(next);
+      return;
+    }
+
+    const stage = modeStageRef.current;
+    if (!stage) {
+      setMode(next);
+      return;
+    }
+
+    setModeSwitching(true);
+    gsap.to(stage, {
+      opacity: 0,
+      x: -42 * dir,
+      y: -8,
+      rotateY: 6 * dir,
+      scale: 0.95,
+      filter: "blur(8px)",
+      duration: 0.28,
+      ease: "power2.in",
+      onComplete: () => setMode(next),
+    });
+  });
 
   const persistDaily = (
     nextGuesses: Legend[],
@@ -378,29 +492,36 @@ function App() {
   };
 
   return (
-    <div id="app">
+    <div id="app" ref={appRef} data-mode={mode} className={`mode-${mode}`}>
       <header>
         <h1>BRAWLDLE</h1>
       </header>
 
-      <div className="controls">
-        <div className="control-group" role="group" aria-label="Game mode">
-          <button
-            type="button"
-            className={`control-btn ${mode === "daily" ? "active" : ""}`}
-            onClick={() => setMode("daily")}
-          >
-            Daily
-          </button>
-          <button
-            type="button"
-            className={`control-btn ${mode === "unlimited" ? "active" : ""}`}
-            onClick={() => setMode("unlimited")}
-          >
-            Unlimited
-          </button>
-        </div>
+      <div className="mode-select" role="group" aria-label="Game mode">
+        <button
+          type="button"
+          className={`mode-card ${mode === "daily" ? "active" : ""}`}
+          onClick={() => requestMode("daily")}
+          disabled={modeSwitching}
+        >
+          <span className="mode-card-kicker">Challenge</span>
+          <span className="mode-card-title">Daily</span>
+          <span className="mode-card-copy">Resets at midnight.</span>
+        </button>
+        <button
+          type="button"
+          className={`mode-card ${mode === "unlimited" ? "active" : ""}`}
+          onClick={() => requestMode("unlimited")}
+          disabled={modeSwitching}
+        >
+          <span className="mode-card-kicker">Free play</span>
+          <span className="mode-card-title">Unlimited</span>
+          <span className="mode-card-copy">Endless rounds.</span>
+        </button>
+      </div>
 
+      <div className="controls">
+        <p className="difficulty-label">Difficulty</p>
         <div className="control-group" role="group" aria-label="Difficulty">
           {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
             <button
@@ -415,69 +536,102 @@ function App() {
         </div>
       </div>
 
-      <div id="game-area">
-        <div className={`guess-row header-row cols-${columns.length}`}>
-          {columns.map((column) => (
-            <div
-              key={column}
-              className={`cell ${column === "name" ? "cell-name" : ""} ${
-                column === "stats" ? "cell-stats" : ""
-              }`}
-            >
-              {COLUMN_LABELS[column]}
-            </div>
-          ))}
-        </div>
-
-        <div id="guesses">
-          {guesses.map((guess) => {
-            const isCorrect = guess.name === answer.name;
-            return (
-              <div
-                key={guess.name}
-                className={`guess-row cols-${columns.length} ${isCorrect ? "correct" : ""}`}
-              >
-                {columns.map((column) => renderColumn(column, guess, guess.name))}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="guess-counter">
-          {guesses.length} / {MAX_GUESSES} guesses
-        </div>
+      <div className="mode-flash" ref={modeFlashRef} aria-hidden="true">
+        <span className="mode-flash-kicker">{mode === "daily" ? "Challenge" : "Free play"}</span>
+        <span className="mode-flash-title">{mode === "daily" ? "Daily" : "Unlimited"}</span>
       </div>
 
-      {gameOver && (
-        <div id="result-banner">
-          <div id="result-text">
-            {won ? (
-              <>
-                You got it in <strong>{guesses.length}</strong> guess
-                {guesses.length > 1 ? "es" : ""}! The answer was{" "}
-                <span className="legend-answer">{answer.name}</span>.
-              </>
-            ) : (
-              <>
-                Out of guesses! The answer was{" "}
-                <span className="legend-answer">{answer.name}</span>.
-              </>
-            )}
+      <div className="mode-stage" ref={modeStageRef}>
+        <div className="mode-banner">
+          <div className="mode-banner-text">
+            <p className="mode-banner-kicker">
+              {mode === "daily" ? "Today's challenge" : "Free play arena"}
+            </p>
+            <h2 className="mode-banner-title">{mode === "daily" ? "Daily" : "Unlimited"}</h2>
+
           </div>
-          {mode === "unlimited" ? (
-            <button className="play-again-btn" onClick={resetUnlimited}>
-              Play Again
-            </button>
+          {mode === "daily" ? (
+            <div className="mode-banner-badge" aria-hidden="true">
+              <span className="badge-day">{dateKey.slice(8)}</span>
+              <span className="badge-month">
+                {new Date(`${dateKey}T12:00:00`).toLocaleString("en-US", { month: "short" })}
+              </span>
+            </div>
           ) : (
-            <div className="next-daily">
-              Next Daily in <strong>{countdown}</strong>
-              <button className="play-again-btn secondary" onClick={() => setMode("unlimited")}>
-                Play Unlimited
-              </button>
+            <div className="mode-banner-badge infinite" aria-hidden="true">
+              <span className="badge-infinity">∞</span>
+              <span className="badge-month">Rounds</span>
             </div>
           )}
         </div>
-      )}
+
+        <div id="game-area">
+          <div className={`guess-row header-row cols-${columns.length}`}>
+            {columns.map((column) => (
+              <div
+                key={column}
+                className={`cell ${column === "name" ? "cell-name" : ""} ${
+                  column === "stats" ? "cell-stats" : ""
+                }`}
+              >
+                {COLUMN_LABELS[column]}
+              </div>
+            ))}
+          </div>
+
+          <div id="guesses">
+            {guesses.map((guess) => {
+              const isCorrect = guess.name === answer.name;
+              return (
+                <div
+                  key={guess.name}
+                  className={`guess-row cols-${columns.length} ${isCorrect ? "correct" : ""}`}
+                >
+                  {columns.map((column) => renderColumn(column, guess, guess.name))}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="guess-counter">
+            {guesses.length} / {MAX_GUESSES} guesses
+          </div>
+        </div>
+
+        {gameOver && (
+          <div id="result-banner">
+            <div id="result-text">
+              {won ? (
+                <>
+                  You got it in <strong>{guesses.length}</strong> guess
+                  {guesses.length > 1 ? "es" : ""}! The answer was{" "}
+                  <span className="legend-answer">{answer.name}</span>.
+                </>
+              ) : (
+                <>
+                  Out of guesses! The answer was{" "}
+                  <span className="legend-answer">{answer.name}</span>.
+                </>
+              )}
+            </div>
+            {mode === "unlimited" ? (
+              <button className="play-again-btn" onClick={resetUnlimited}>
+                Play Again
+              </button>
+            ) : (
+              <div className="next-daily">
+                Next Daily in <strong>{countdown}</strong>
+                <button
+                  className="play-again-btn secondary"
+                  onClick={() => requestMode("unlimited")}
+                >
+                  Play Unlimited
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div id="input-area">
         {showAutocomplete && (
