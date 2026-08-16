@@ -11,18 +11,120 @@ type Legend = {
 };
 
 type Hint = "green" | "yellow" | "grey";
+type GameMode = "daily" | "unlimited";
+type Difficulty = "easy" | "medium" | "hard";
+type ColumnId = "name" | "gender" | "weapon1" | "weapon2" | "year" | "stats";
+
+type DailySave = {
+  dateKey: string;
+  guesses: string[];
+  gameOver: boolean;
+  won: boolean;
+};
 
 const MAX_GUESSES = 8;
 const STAT_LABELS = ["STR", "DEX", "DEF", "SPD"];
-
 const legends = legendsData as Legend[];
+
+const COLUMN_LABELS: Record<ColumnId, string> = {
+  name: "Legend",
+  gender: "Gender",
+  weapon1: "Weapon 1",
+  weapon2: "Weapon 2",
+  year: "Year",
+  stats: "Stats",
+};
+
+/** Easy = full board. Medium drops Gender + Year. Hard keeps weapons only. */
+const DIFFICULTY_COLUMNS: Record<Difficulty, ColumnId[]> = {
+  easy: ["name", "gender", "weapon1", "weapon2", "year", "stats"],
+  medium: ["name", "weapon1", "weapon2", "stats"],
+  hard: ["name", "weapon1", "weapon2"],
+};
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** Deterministic PRNG from an integer seed (Mulberry32). */
+function mulberry32(seed: number) {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seedFromDateKey(dateKey: string) {
+  let hash = 2166136261;
+  for (let i = 0; i < dateKey.length; i++) {
+    hash ^= dateKey.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
 
 function getRandomLegend() {
   return legends[Math.floor(Math.random() * legends.length)];
 }
 
+function getDailyLegend(dateKey: string) {
+  const rand = mulberry32(seedFromDateKey(dateKey));
+  const index = Math.floor(rand() * legends.length);
+  return legends[index];
+}
+
+function dailyStorageKey(dateKey: string, difficulty: Difficulty) {
+  return `brawldle-daily-${dateKey}-${difficulty}`;
+}
+
+function loadDailySave(dateKey: string, difficulty: Difficulty): DailySave | null {
+  try {
+    const raw = localStorage.getItem(dailyStorageKey(dateKey, difficulty));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DailySave;
+    if (parsed.dateKey !== dateKey || !Array.isArray(parsed.guesses)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveDailyProgress(dateKey: string, difficulty: Difficulty, save: DailySave) {
+  localStorage.setItem(dailyStorageKey(dateKey, difficulty), JSON.stringify(save));
+}
+
+function legendsFromNames(names: string[]) {
+  return names
+    .map((name) => legends.find((legend) => legend.name === name))
+    .filter((legend): legend is Legend => Boolean(legend));
+}
+
+function msUntilNextLocalMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return next.getTime() - now.getTime();
+}
+
+function formatCountdown(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function App() {
-  const [answer, setAnswer] = useState<Legend>(() => getRandomLegend());
+  const [mode, setMode] = useState<GameMode>("daily");
+  const [difficulty, setDifficulty] = useState<Difficulty>("easy");
+  const [dateKey, setDateKey] = useState(() => getLocalDateKey());
+
+  const [answer, setAnswer] = useState<Legend>(() => getDailyLegend(getLocalDateKey()));
   const [guessInput, setGuessInput] = useState("");
   const [guesses, setGuesses] = useState<Legend[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -30,6 +132,9 @@ function App() {
   const [shakeInput, setShakeInput] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [won, setWon] = useState(false);
+  const [countdown, setCountdown] = useState(() => formatCountdown(msUntilNextLocalMidnight()));
+
+  const columns = DIFFICULTY_COLUMNS[difficulty];
 
   const guessedNames = useMemo(
     () => new Set(guesses.map((g) => g.name.toLowerCase())),
@@ -52,6 +157,64 @@ function App() {
     setShowAutocomplete(filteredLegends.length > 0 && guessInput.length > 0);
     setActiveIndex(0);
   }, [filteredLegends.length, guessInput.length]);
+
+  useEffect(() => {
+    const syncDate = () => {
+      const nextKey = getLocalDateKey();
+      setDateKey((prev) => (prev === nextKey ? prev : nextKey));
+    };
+    syncDate();
+    const id = window.setInterval(syncDate, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "daily" || !gameOver) return;
+    const tick = () => setCountdown(formatCountdown(msUntilNextLocalMidnight()));
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [mode, gameOver]);
+
+  useEffect(() => {
+    if (mode === "daily") {
+      const saved = loadDailySave(dateKey, difficulty);
+      const dailyAnswer = getDailyLegend(dateKey);
+      setAnswer(dailyAnswer);
+      if (saved) {
+        setGuesses(legendsFromNames(saved.guesses));
+        setGameOver(saved.gameOver);
+        setWon(saved.won);
+      } else {
+        setGuesses([]);
+        setGameOver(false);
+        setWon(false);
+      }
+    } else {
+      setAnswer(getRandomLegend());
+      setGuesses([]);
+      setGameOver(false);
+      setWon(false);
+    }
+    setGuessInput("");
+    setShowAutocomplete(false);
+    setShakeInput(false);
+    setActiveIndex(0);
+  }, [mode, difficulty, dateKey]);
+
+  const persistDaily = (
+    nextGuesses: Legend[],
+    nextGameOver: boolean,
+    nextWon: boolean,
+  ) => {
+    if (mode !== "daily") return;
+    saveDailyProgress(dateKey, difficulty, {
+      dateKey,
+      guesses: nextGuesses.map((g) => g.name),
+      gameOver: nextGameOver,
+      won: nextWon,
+    });
+  };
 
   const compareText = (value: string, target: string): Hint =>
     value === target ? "green" : "grey";
@@ -89,17 +252,20 @@ function App() {
     }
 
     const nextGuesses = [...guesses, legend];
+    const hasWon = legend.name === answer.name;
+    const outOfGuesses = nextGuesses.length >= MAX_GUESSES;
+    const nextGameOver = hasWon || outOfGuesses;
+
     setGuesses(nextGuesses);
     setGuessInput("");
     setShowAutocomplete(false);
 
-    const hasWon = legend.name === answer.name;
-    const outOfGuesses = nextGuesses.length >= MAX_GUESSES;
-
-    if (hasWon || outOfGuesses) {
+    if (nextGameOver) {
       setGameOver(true);
       setWon(hasWon);
     }
+
+    persistDaily(nextGuesses, nextGameOver, hasWon);
   };
 
   const onInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -127,7 +293,7 @@ function App() {
     }
   };
 
-  const resetGame = () => {
+  const resetUnlimited = () => {
     setAnswer(getRandomLegend());
     setGuessInput("");
     setGuesses([]);
@@ -138,75 +304,140 @@ function App() {
     setWon(false);
   };
 
+  const renderColumn = (column: ColumnId, guess: Legend, keyPrefix: string) => {
+    switch (column) {
+      case "name":
+        return (
+          <div
+            key={`${keyPrefix}-name`}
+            className={`cell cell-name hint-${compareText(guess.name, answer.name)}`}
+          >
+            {guess.name}
+          </div>
+        );
+      case "gender":
+        return (
+          <div
+            key={`${keyPrefix}-gender`}
+            className={`cell hint-${compareText(guess.gender, answer.gender)}`}
+          >
+            {guess.gender}
+          </div>
+        );
+      case "weapon1":
+        return (
+          <div
+            key={`${keyPrefix}-weapon1`}
+            className={`cell hint-${compareWeapon(guess.weapon1, answer.weapon1, answer.weapon2)}`}
+          >
+            <span className="weapon-icon">{guess.weapon1}</span>
+          </div>
+        );
+      case "weapon2":
+        return (
+          <div
+            key={`${keyPrefix}-weapon2`}
+            className={`cell hint-${compareWeapon(guess.weapon2, answer.weapon2, answer.weapon1)}`}
+          >
+            <span className="weapon-icon">{guess.weapon2}</span>
+          </div>
+        );
+      case "year":
+        return (
+          <div
+            key={`${keyPrefix}-year`}
+            className={`cell hint-${compareYear(guess.year, answer.year)} year-cell`}
+          >
+            <span>{guess.year}</span>
+            {guess.year !== answer.year && (
+              <span className="year-arrow">{guess.year < answer.year ? "▲" : "▼"}</span>
+            )}
+          </div>
+        );
+      case "stats":
+        return (
+          <div key={`${keyPrefix}-stats`} className="cell stats-shell">
+            <div className="stats-group">
+              {guess.stats.map((value, index) => {
+                const target = answer.stats[index];
+                const hint = compareStat(value, target);
+                return (
+                  <div className={`stat-cell hint-${hint}`} key={`${keyPrefix}-stat-${index}`}>
+                    <span className="stat-label">{STAT_LABELS[index]}</span>
+                    <span>
+                      {value}
+                      {value !== target ? (value < target ? " ▲" : " ▼") : ""}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+    }
+  };
+
   return (
     <div id="app">
       <header>
         <h1>BRAWLDLE</h1>
-        <p className="subtitle">Guess the Brawlhalla Legend!</p>
       </header>
 
+      <div className="controls">
+        <div className="control-group" role="group" aria-label="Game mode">
+          <button
+            type="button"
+            className={`control-btn ${mode === "daily" ? "active" : ""}`}
+            onClick={() => setMode("daily")}
+          >
+            Daily
+          </button>
+          <button
+            type="button"
+            className={`control-btn ${mode === "unlimited" ? "active" : ""}`}
+            onClick={() => setMode("unlimited")}
+          >
+            Unlimited
+          </button>
+        </div>
+
+        <div className="control-group" role="group" aria-label="Difficulty">
+          {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
+            <button
+              key={level}
+              type="button"
+              className={`control-btn ${difficulty === level ? "active" : ""}`}
+              onClick={() => setDifficulty(level)}
+            >
+              {level.charAt(0).toUpperCase() + level.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div id="game-area">
-        <div className="guess-row header-row">
-          <div className="cell cell-name">Legend</div>
-          <div className="cell">Gender</div>
-          <div className="cell">Weapon 1</div>
-          <div className="cell">Weapon 2</div>
-          <div className="cell">Year</div>
-          <div className="cell cell-stats">Stats</div>
+        <div className={`guess-row header-row cols-${columns.length}`}>
+          {columns.map((column) => (
+            <div
+              key={column}
+              className={`cell ${column === "name" ? "cell-name" : ""} ${
+                column === "stats" ? "cell-stats" : ""
+              }`}
+            >
+              {COLUMN_LABELS[column]}
+            </div>
+          ))}
         </div>
 
         <div id="guesses">
           {guesses.map((guess) => {
             const isCorrect = guess.name === answer.name;
             return (
-              <div key={guess.name} className={`guess-row ${isCorrect ? "correct" : ""}`}>
-                <div className={`cell cell-name hint-${compareText(guess.name, answer.name)}`}>
-                  {guess.name}
-                </div>
-                <div className={`cell hint-${compareText(guess.gender, answer.gender)}`}>
-                  {guess.gender}
-                </div>
-                <div
-                  className={`cell hint-${compareWeapon(
-                    guess.weapon1,
-                    answer.weapon1,
-                    answer.weapon2,
-                  )}`}
-                >
-                  <span className="weapon-icon">{guess.weapon1}</span>
-                </div>
-                <div
-                  className={`cell hint-${compareWeapon(
-                    guess.weapon2,
-                    answer.weapon2,
-                    answer.weapon1,
-                  )}`}
-                >
-                  <span className="weapon-icon">{guess.weapon2}</span>
-                </div>
-                <div className={`cell hint-${compareYear(guess.year, answer.year)} year-cell`}>
-                  <span>{guess.year}</span>
-                  {guess.year !== answer.year && (
-                    <span className="year-arrow">{guess.year < answer.year ? "▲" : "▼"}</span>
-                  )}
-                </div>
-                <div className="cell stats-shell">
-                  <div className="stats-group">
-                    {guess.stats.map((value, index) => {
-                      const target = answer.stats[index];
-                      const hint = compareStat(value, target);
-                      return (
-                        <div className={`stat-cell hint-${hint}`} key={`${guess.name}-${index}`}>
-                          <span className="stat-label">{STAT_LABELS[index]}</span>
-                          <span>
-                            {value}
-                            {value !== target ? (value < target ? " ▲" : " ▼") : ""}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+              <div
+                key={guess.name}
+                className={`guess-row cols-${columns.length} ${isCorrect ? "correct" : ""}`}
+              >
+                {columns.map((column) => renderColumn(column, guess, guess.name))}
               </div>
             );
           })}
@@ -233,9 +464,18 @@ function App() {
               </>
             )}
           </div>
-          <button className="play-again-btn" onClick={resetGame}>
-            Play Again
-          </button>
+          {mode === "unlimited" ? (
+            <button className="play-again-btn" onClick={resetUnlimited}>
+              Play Again
+            </button>
+          ) : (
+            <div className="next-daily">
+              Next Daily in <strong>{countdown}</strong>
+              <button className="play-again-btn secondary" onClick={() => setMode("unlimited")}>
+                Play Unlimited
+              </button>
+            </div>
+          )}
         </div>
       )}
 

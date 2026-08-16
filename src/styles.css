@@ -27,9 +27,14 @@
 
 body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background: radial-gradient(1200px 700px at 15% -10%, #1a2850 0%, transparent 45%),
-    radial-gradient(900px 500px at 85% -20%, #1a2342 0%, transparent 50%),
-    linear-gradient(180deg, var(--bg-grad-a), var(--bg-grad-b));
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(180deg, rgba(8, 12, 24, 0.72), rgba(8, 12, 24, 0.82)),
+    url("/background.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   display: flex;
@@ -64,6 +69,53 @@ header h1 {
   margin-top: 0.25rem;
 }
 
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+.control-group {
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--border);
+}
+
+.control-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.control-btn:hover {
+  color: var(--text);
+}
+
+.control-btn.active {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #fff;
+}
+
+.difficulty-blurb {
+  color: #8fa0bd;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
 #game-area {
   margin-top: 1rem;
   padding: 0.55rem;
@@ -76,9 +128,20 @@ header h1 {
 
 .guess-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.6fr;
   gap: 6px;
   margin-bottom: 6px;
+}
+
+.guess-row.cols-6 {
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1.6fr;
+}
+
+.guess-row.cols-4 {
+  grid-template-columns: 1.6fr 1.1fr 1.1fr 1.8fr;
+}
+
+.guess-row.cols-3 {
+  grid-template-columns: 1.8fr 1.2fr 1.2fr;
 }
 
 .header-row .cell {
@@ -270,6 +333,28 @@ header h1 {
   transform: translateY(1px);
 }
 
+.play-again-btn.secondary {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  background: linear-gradient(180deg, #3a4d73, #2f3f5f);
+}
+
+.next-daily {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.next-daily strong {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.next-daily .play-again-btn {
+  margin-top: 0.65rem;
+}
+
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
@@ -399,8 +484,23 @@ header h1 {
 }
 
 @media (max-width: 600px) {
-  .guess-row {
+  body {
+    background-attachment: scroll;
+  }
+
+  .guess-row.cols-6 {
     grid-template-columns: 1.2fr 0.8fr 0.8fr 0.8fr 0.7fr 1.5fr;
+  }
+
+  .guess-row.cols-4 {
+    grid-template-columns: 1.3fr 1fr 1fr 1.5fr;
+  }
+
+  .guess-row.cols-3 {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+
+  .guess-row {
     gap: 4px;
   }
 
@@ -408,6 +508,11 @@ header h1 {
     font-size: 0.7rem;
     padding: 0.5rem 0.25rem;
     min-height: 42px;
+  }
+
+  .control-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.7rem;
   }
 
   header h1 {
