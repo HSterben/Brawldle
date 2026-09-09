@@ -67,5 +67,6 @@
   {"name":"Ransom","gender":"Male","weapon1":"Bow","weapon2":"Chakram","year":2025,"stats":[7,4,3,8]},
   {"name":"Lady Vera","gender":"Female","weapon1":"Chakram","weapon2":"Scythe","year":2025,"stats":[3,7,8,4]},
   {"name":"Rupture","gender":"Male","weapon1":"Katars","weapon2":"Rocket Lance","year":2026,"stats":[9,3,5,5]},
-  {"name":"Aurus","gender":"Male","weapon1":"Chakram","weapon2":"Spear","year":2026,"stats":[6,6,6,4]}
+  {"name":"Aurus","gender":"Male","weapon1":"Chakram","weapon2":"Spear","year":2026,"stats":[6,6,6,4]},
+  {"name":"Qinghua & Baobao","gender":"Female","weapon1":"Orb","weapon2":"Cannon","year":2026,"stats":[5,4,5,8]}
 ]
