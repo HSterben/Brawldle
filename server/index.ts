@@ -127,6 +127,7 @@ function lobbyPayload(lobby: Lobby, viewerId: string): DuelLobbyPublic {
     rule: lobby.rule,
     difficulty: lobby.difficulty,
     youAreHost: lobby.hostId === viewerId,
+    hostId: lobby.hostId,
     yourId: viewerId,
     players: publicPlayers(lobby, viewerId),
     yourAnswer: lobby.phase === "finished" ? yourAnswer : null,

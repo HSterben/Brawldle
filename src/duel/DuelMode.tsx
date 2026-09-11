@@ -287,6 +287,55 @@ type DuelModeProps = {
   onExit: () => void;
 };
 
+function LobbyMembers({
+  lobby,
+  showPickReady,
+}: {
+  lobby: DuelLobbyPublic;
+  showPickReady?: boolean;
+}) {
+  const host = lobby.players.find((player) => player.id === lobby.hostId) || null;
+  const guest = lobby.players.find((player) => player.id !== lobby.hostId) || null;
+  const slots = [host, guest];
+
+  return (
+    <aside className="duel-members" aria-label="Lobby members">
+      <p className="duel-members-title">Players</p>
+      <ul className="duel-member-list">
+        {slots.map((player, index) => {
+          if (!player) {
+            return (
+              <li key={`empty-${index}`} className="duel-member empty">
+                <div>
+                  <span className="duel-member-name">Empty slot</span>
+                  <span className="duel-member-role">Waiting for player</span>
+                </div>
+              </li>
+            );
+          }
+
+          const isYou = player.id === lobby.yourId;
+          const isHost = player.id === lobby.hostId;
+          const roleParts = [
+            isHost ? "Host" : "Guest",
+            isYou ? "You" : null,
+            showPickReady ? (player.picked ? "Ready" : "Picking") : null,
+          ].filter(Boolean);
+
+          return (
+            <li key={player.id} className={`duel-member ${player.picked && showPickReady ? "is-ready" : ""}`}>
+              <div>
+                <span className="duel-member-name">{player.name}</span>
+                <span className="duel-member-role">{roleParts.join(" · ")}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
+  );
+}
+
 export default function DuelMode({ onExit }: DuelModeProps) {
   const [status, setStatus] = useState<"connecting" | "connected" | "error">("connecting");
   const [error, setError] = useState<string | null>(null);
@@ -450,104 +499,126 @@ export default function DuelMode({ onExit }: DuelModeProps) {
       )}
 
       {lobby && lobby.phase === "waiting" && (
-        <div className="duel-lobby">
-          <div className="mode-banner">
-            <div className="mode-banner-text">
-              <p className="mode-banner-kicker">Lobby</p>
-              <h2 className="mode-banner-title">{lobby.code}</h2>
-              <p className="mode-banner-copy">
-                {foe ? `${you?.name} vs ${foe.name}` : "Waiting for your opponent to join…"}
-              </p>
-            </div>
-            <button type="button" className="play-again-btn" onClick={copyInvite}>
-              {copied ? "Copied" : "Copy link"}
-            </button>
-          </div>
-
-          <div className="duel-invite-box">
-            <code>{inviteUrl}</code>
-          </div>
-
-          {lobby.youAreHost ? (
-            <div className="duel-host-settings">
-              <p className="difficulty-label">Match rule</p>
-              <div className="control-group">
-                {(
-                  [
-                    ["shared", "Same random"],
-                    ["pick", "Pick for each other"],
-                  ] as [DuelRule, string][]
-                ).map(([rule, label]) => (
-                  <button
-                    key={rule}
-                    type="button"
-                    className={`control-btn ${lobby.rule === rule ? "active" : ""}`}
-                    onClick={() => send(wsRef.current, { type: "setRule", rule })}
-                  >
-                    {label}
-                  </button>
-                ))}
+        <div className="duel-shell">
+          <div className="duel-lobby-main">
+            <div className="mode-banner">
+              <div className="mode-banner-text">
+                <p className="mode-banner-kicker">Lobby</p>
+                <h2 className="mode-banner-title">{lobby.code}</h2>
+                <p className="mode-banner-copy">
+                  {foe ? `${you?.name} vs ${foe.name}` : "Share the code or link to invite a friend."}
+                </p>
               </div>
-              <p className="duel-rule-help">
-                {lobby.rule === "shared"
-                  ? "Both players hunt the same secret legend."
-                  : "Each player secretly picks the legend the opponent must guess."}
-              </p>
-
-              <p className="difficulty-label">Difficulty</p>
-              <div className="control-group">
-                {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    className={`control-btn ${lobby.difficulty === level ? "active" : ""}`}
-                    onClick={() =>
-                      send(wsRef.current, { type: "setDifficulty", difficulty: level })
-                    }
-                  >
-                    {level}
-                  </button>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                className="play-again-btn"
-                disabled={!foe}
-                onClick={() => send(wsRef.current, { type: "start" })}
-              >
-                Start duel
+              <button type="button" className="play-again-btn" onClick={copyInvite}>
+                {copied ? "Copied" : "Copy link"}
               </button>
             </div>
-          ) : (
-            <p className="duel-status">Host is setting the match rules…</p>
-          )}
+
+            <div className="duel-invite-box">
+              <code>{inviteUrl}</code>
+            </div>
+
+            {lobby.youAreHost ? (
+              <div className="duel-host-settings">
+                <p className="difficulty-label">Match rule</p>
+                <div className="control-group">
+                  {(
+                    [
+                      ["shared", "Same random"],
+                      ["pick", "Pick for each other"],
+                    ] as [DuelRule, string][]
+                  ).map(([rule, label]) => (
+                    <button
+                      key={rule}
+                      type="button"
+                      className={`control-btn ${lobby.rule === rule ? "active" : ""}`}
+                      onClick={() => send(wsRef.current, { type: "setRule", rule })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="duel-rule-help">
+                  {lobby.rule === "shared"
+                    ? "Both players hunt the same secret legend."
+                    : "Each player secretly picks the legend the opponent must guess."}
+                </p>
+
+                <p className="difficulty-label">Difficulty</p>
+                <div className="control-group">
+                  {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      className={`control-btn ${lobby.difficulty === level ? "active" : ""}`}
+                      onClick={() =>
+                        send(wsRef.current, { type: "setDifficulty", difficulty: level })
+                      }
+                    >
+                      {level}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  className="play-again-btn"
+                  disabled={!foe}
+                  onClick={() => send(wsRef.current, { type: "start" })}
+                >
+                  Start duel
+                </button>
+              </div>
+            ) : (
+              <p className="duel-status">Host is setting the match rules…</p>
+            )}
+          </div>
+
+          <LobbyMembers lobby={lobby} />
         </div>
       )}
 
       {lobby && lobby.phase === "picking" && (
-        <div className="duel-picking">
-          <div className="mode-banner">
-            <div className="mode-banner-text">
-              <p className="mode-banner-kicker">Secret pick</p>
-              <h2 className="mode-banner-title">Choose their legend</h2>
-              <p className="mode-banner-copy">
-                {you?.picked
-                  ? "Locked in. Waiting for opponent…"
-                  : "Pick the legend your opponent has to guess."}
-              </p>
+        <div className="duel-shell">
+          <div className="duel-picking-main">
+            <div className="mode-banner">
+              <div className="mode-banner-text">
+                <p className="mode-banner-kicker">Secret pick</p>
+                <h2 className="mode-banner-title">Choose their legend</h2>
+                <p className="mode-banner-copy">
+                  {you?.picked
+                    ? "Locked in. Waiting for opponent…"
+                    : "Pick the legend your opponent has to guess."}
+                </p>
+              </div>
             </div>
+
+            <div className="duel-ready-status">
+              <div className={`duel-ready-row ${you?.picked ? "ready" : ""}`}>
+                <span className="label">You</span>
+                <span className="value">{you?.picked ? "Ready" : "Picking…"}</span>
+              </div>
+              <div className={`duel-ready-row ${foe?.picked ? "ready" : ""}`}>
+                <span className="label">{foe?.name || "Opponent"}</span>
+                <span className="value">
+                  {foe?.picked ? "Opponent ready" : "Waiting…"}
+                </span>
+              </div>
+            </div>
+
+            {!you?.picked && (
+              <AutocompleteInput
+                value={pickInput}
+                onChange={setPickInput}
+                onSubmit={(name) => {
+                  send(wsRef.current, { type: "pick", legendName: name });
+                  setPickInput("");
+                }}
+              />
+            )}
           </div>
-          {!you?.picked && (
-            <AutocompleteInput
-              value={pickInput}
-              onChange={setPickInput}
-              onSubmit={(name) => {
-                send(wsRef.current, { type: "pick", legendName: name });
-                setPickInput("");
-              }}
-            />
-          )}
+
+          <LobbyMembers lobby={lobby} showPickReady />
         </div>
       )}
 

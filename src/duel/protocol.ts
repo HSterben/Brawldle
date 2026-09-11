@@ -27,6 +27,7 @@ export type DuelLobbyPublic = {
   rule: DuelRule;
   difficulty: Difficulty;
   youAreHost: boolean;
+  hostId: string;
   yourId: string;
   players: DuelPlayerPublic[];
   yourAnswer: Legend | null;

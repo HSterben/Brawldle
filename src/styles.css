@@ -10,46 +10,42 @@
   --bg: #0b1020;
   --bg-grad-a: #0f172a;
   --bg-grad-b: #121a2f;
-  --surface: #111a2e;
+  --surface: #121a2c;
   --surface-soft: #17233b;
-  --surface-light: #1d2b47;
+  --surface-light: #1c273c;
   --text: #e8edf7;
-  --text-muted: #95a3bd;
-  --accent: #7c9cff;
-  --accent-strong: #6287ff;
-  --mode-accent: #7c9cff;
-  --mode-accent-strong: #6287ff;
-  --mode-glow: rgba(98, 135, 255, 0.28);
-  --green: #2bb673;
-  --yellow: #d5a62e;
-  --grey: #33425e;
-  --border: #26334f;
-  --input-bg: #0d1426;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --text-muted: #8b98b0;
+  --accent: #8ea4ff;
+  --accent-strong: #8ea4ff;
+  --mode-accent: #8ea4ff;
+  --mode-accent-strong: #8ea4ff;
+  --green: #2f9e6b;
+  --yellow: #c9a227;
+  --grey: #3a4660;
+  --border: #2a354c;
+  --input-bg: #0d1424;
+  --shadow: none;
 }
 
 #app.mode-daily {
-  --mode-accent: #f0b429;
-  --mode-accent-strong: #d49216;
-  --mode-glow: rgba(240, 180, 41, 0.28);
+  --mode-accent: #d4a84b;
+  --mode-accent-strong: #d4a84b;
   --accent: var(--mode-accent);
-  --accent-strong: var(--mode-accent-strong);
+  --accent-strong: var(--mode-accent);
 }
 
 #app.mode-unlimited {
-  --mode-accent: #5eead4;
-  --mode-accent-strong: #2dd4bf;
-  --mode-glow: rgba(45, 212, 191, 0.28);
+  --mode-accent: #5ec4b4;
+  --mode-accent-strong: #5ec4b4;
   --accent: var(--mode-accent);
-  --accent-strong: var(--mode-accent-strong);
+  --accent-strong: var(--mode-accent);
 }
 
 #app.mode-duel {
-  --mode-accent: #ff6b8a;
-  --mode-accent-strong: #e84b6d;
-  --mode-glow: rgba(232, 75, 109, 0.28);
+  --mode-accent: #d87a90;
+  --mode-accent-strong: #d87a90;
   --accent: var(--mode-accent);
-  --accent-strong: var(--mode-accent-strong);
+  --accent-strong: var(--mode-accent);
   max-width: 1100px;
 }
 
@@ -82,13 +78,9 @@ header {
 
 header h1 {
   font-size: 2.15rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
-  background: linear-gradient(135deg, #d7e3ff, #86a4ff 65%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 0 24px rgba(124, 156, 255, 0.15);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #eef3ff;
 }
 
 .subtitle {
@@ -122,62 +114,28 @@ header h1 {
 }
 
 .mode-card {
-  position: relative;
-  overflow: hidden;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0.7rem 0.85rem 0.75rem;
   cursor: pointer;
   color: var(--text);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.04), transparent 55%),
-    color-mix(in srgb, var(--surface) 88%, transparent);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.mode-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: transparent;
-  transition: background 0.2s ease;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .mode-card:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--border) 50%, #6f84ad);
+  border-color: #3d4b66;
+  background: var(--surface-light);
 }
 
 .mode-card:disabled {
   cursor: wait;
 }
 
-.mode-select .mode-card:first-child.active {
-  border-color: color-mix(in srgb, #f0b429 50%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, #f0b429 25%, transparent);
-}
-
-.mode-select .mode-card:first-child.active::before {
-  background: linear-gradient(180deg, #f0b429, #d49216);
-}
-
-.mode-select .mode-card:nth-child(2).active {
-  border-color: color-mix(in srgb, #5eead4 50%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, #5eead4 25%, transparent);
-}
-
-.mode-select .mode-card:nth-child(2).active::before {
-  background: linear-gradient(180deg, #5eead4, #2dd4bf);
-}
-
-.mode-select .mode-card:nth-child(3).active {
-  border-color: color-mix(in srgb, #ff6b8a 50%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, #ff6b8a 25%, transparent);
-}
-
-.mode-select .mode-card:nth-child(3).active::before {
-  background: linear-gradient(180deg, #ff6b8a, #e84b6d);
+.mode-card.active {
+  border-color: color-mix(in srgb, var(--mode-accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--mode-accent) 10%, var(--surface));
 }
 
 .mode-card-kicker {
@@ -204,28 +162,26 @@ header h1 {
 
 .control-group {
   display: inline-flex;
-  padding: 4px;
-  gap: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  padding: 3px;
+  gap: 2px;
+  border-radius: 8px;
+  background: var(--input-bg);
   border: 1px solid var(--border);
 }
 
 .control-btn {
-  position: relative;
-  z-index: 1;
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  padding: 0.45rem 0.9rem;
-  border-radius: 999px;
+  padding: 0.42rem 0.8rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition: color 0.2s ease, transform 0.15s ease, background 0.2s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .control-btn:hover {
@@ -233,8 +189,8 @@ header h1 {
 }
 
 .control-btn.active {
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  color: #0b1020;
+  background: var(--surface-light);
+  color: var(--text);
 }
 
 .mode-stage {
@@ -247,67 +203,46 @@ header h1 {
   justify-content: space-between;
   gap: 0.75rem;
   margin: 0.45rem 0 0.85rem;
-  padding: 0.7rem 0.9rem;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 35%, var(--border));
-  background:
-    linear-gradient(120deg, color-mix(in srgb, var(--mode-accent) 14%, transparent), transparent 55%),
-    color-mix(in srgb, var(--surface) 90%, transparent);
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  border-radius: 0;
 }
 
 .mode-banner-kicker {
   font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--mode-accent) 75%, #fff);
+  color: var(--text-muted);
   margin-bottom: 0.15rem;
 }
 
 .mode-banner-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   line-height: 1;
+  color: var(--text);
 }
 
 .mode-banner-copy {
   display: none;
 }
 
-.mode-banner-badge {
+.duel-root .mode-banner-copy {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+.mode-banner-meta {
   flex-shrink: 0;
-  width: 54px;
-  height: 54px;
-  border-radius: 10px;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--mode-accent) 85%, #fff), var(--mode-accent-strong));
-  color: #1a1408;
-}
-
-.mode-banner-badge.infinite {
-  color: #06241f;
-}
-
-.badge-day,
-.badge-infinity {
-  display: block;
-  font-size: 1.05rem;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.badge-month {
-  display: block;
-  margin-top: 0.1rem;
-  font-size: 0.55rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
 #game-area {
@@ -316,11 +251,9 @@ header h1 {
   margin-top: 0;
   padding: 0.85rem;
   min-height: 340px;
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 22%, var(--border));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
 }
 
 .guess-row {
@@ -379,21 +312,19 @@ header h1 {
 }
 
 .hint-green {
-  background: linear-gradient(180deg, #2fc67d, #26ad6d);
-  color: #f5fff9;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  background: var(--green);
+  color: #f4fff9;
 }
 
 .hint-yellow {
-  background: linear-gradient(180deg, #e4b845, #c89520);
+  background: var(--yellow);
   color: #1a1f2f;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .hint-grey {
-  background: linear-gradient(180deg, #394969, #2f3f5d);
-  color: #d4deef;
-  border-color: #435476;
+  background: var(--grey);
+  color: #d5deef;
+  border-color: transparent;
 }
 
 .guess-row:not(.header-row) .cell {
@@ -492,16 +423,14 @@ header h1 {
   text-align: center;
   padding: 1rem;
   margin-top: 0.75rem;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #111a2e, #0f1728);
+  border-radius: 10px;
+  background: var(--surface);
   border: 1px solid var(--border);
-  animation: fadeSlideUp 0.5s ease;
-  box-shadow: var(--shadow);
 }
 
 #result-text {
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 #result-text .legend-answer {
@@ -511,32 +440,43 @@ header h1 {
 .play-again-btn {
   display: inline-block;
   margin-top: 0.75rem;
-  padding: 0.55rem 1.5rem;
-  border: none;
+  padding: 0.55rem 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
   border-radius: 8px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  color: #0b1020;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
   font-family: inherit;
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .play-again-btn:hover {
-  filter: brightness(1.08);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
 }
 
 .play-again-btn:active {
-  transform: translateY(1px);
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
+}
+
+.play-again-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .play-again-btn.secondary {
   display: block;
   margin-left: auto;
   margin-right: auto;
-  background: linear-gradient(180deg, #3a4d73, #2f3f5f);
-  color: #fff;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.play-again-btn.secondary:hover {
+  background: var(--surface-light);
 }
 
 .next-daily {
@@ -601,8 +541,7 @@ header h1 {
 }
 
 #guess-input:focus {
-  border-color: #6f93ff;
-  box-shadow: 0 0 0 3px rgba(111, 147, 255, 0.16);
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 #guess-input.shake {
@@ -620,23 +559,23 @@ header h1 {
 
 #guess-btn {
   padding: 0 1rem;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  color: #0b1020;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--text);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 #guess-btn:hover {
-  filter: brightness(1.07);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
 }
 
 #guess-btn:active {
-  transform: translateY(1px);
+  background: color-mix(in srgb, var(--accent) 28%, var(--surface));
 }
 
 #guess-btn:disabled,
@@ -653,9 +592,8 @@ header h1 {
   overflow-y: auto;
   background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   margin-bottom: 6px;
-  box-shadow: var(--shadow);
 }
 
 #autocomplete-list li {
@@ -709,15 +647,21 @@ header h1 {
   }
 
   .mode-banner-title {
-    font-size: 1.35rem;
-  }
-
-  .mode-banner-badge {
-    width: 56px;
-    height: 56px;
+    font-size: 1.2rem;
   }
 
   .duel-boards {
+    grid-template-columns: 1fr;
+  }
+
+  .duel-members {
+    position: static;
+    width: 100%;
+    margin-top: 0.85rem;
+  }
+
+  .duel-lobby-layout,
+  .duel-picking-layout {
     grid-template-columns: 1fr;
   }
 
@@ -804,6 +748,117 @@ header h1 {
   gap: 0.85rem;
 }
 
+.duel-lobby-layout,
+.duel-picking-layout {
+  display: block;
+}
+
+.duel-shell {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+}
+
+.duel-lobby-main,
+.duel-picking-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: min(100%, 560px);
+  margin: 0 auto;
+}
+
+.duel-members {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 210px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 0.8rem 0.85rem;
+}
+
+.duel-members-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+.duel-member-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.duel-member {
+  padding: 0.55rem 0.15rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.duel-member:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.duel-member.empty {
+  opacity: 0.7;
+}
+
+.duel-member-name {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.duel-member-role {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.duel-member.is-ready .duel-member-role {
+  color: #7dcca8;
+}
+
+.duel-ready-status {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.duel-ready-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.duel-ready-row:last-child {
+  border-bottom: none;
+}
+
+.duel-ready-row .label {
+  color: var(--text-muted);
+}
+
+.duel-ready-row .value {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.duel-ready-row.ready .value {
+  color: #7dcca8;
+}
+
 .duel-field {
   display: flex;
   flex-direction: column;
@@ -848,16 +903,16 @@ header h1 {
 }
 
 .duel-invite-box {
-  padding: 0.75rem 0.9rem;
-  border-radius: 10px;
-  border: 1px dashed color-mix(in srgb, var(--mode-accent) 40%, var(--border));
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  padding: 0.7rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
   overflow-x: auto;
 }
 
 .duel-invite-box code {
   font-size: 0.78rem;
-  color: #d7e3ff;
+  color: var(--text-muted);
 }
 
 .duel-host-settings {
@@ -895,15 +950,14 @@ header h1 {
 
 .duel-board {
   padding: 0.55rem;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 18%, var(--border));
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
-  box-shadow: var(--shadow);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
   min-height: 180px;
 }
 
 .duel-board.foe {
-  border-style: dashed;
+  border-style: solid;
   opacity: 0.95;
 }
 
@@ -918,46 +972,37 @@ header h1 {
 
 .duel-board-head h3 {
   font-size: 1rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  font-weight: 600;
 }
 
 .duel-board-kicker {
   font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #8fa0bd;
+  color: var(--text-muted);
 }
 
 .duel-timer {
-  min-width: 3rem;
+  min-width: 2.75rem;
   text-align: center;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 0.35rem 0.55rem;
-  border-radius: 999px;
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  color: #0b1020;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  background: var(--surface-light);
+  border: 1px solid var(--border);
+  color: var(--text);
 }
 
 .duel-timer.ghost {
-  background: color-mix(in srgb, var(--surface-light) 90%, transparent);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: transparent;
 }
 
 .duel-timer.urgent {
-  animation: duelPulse 0.7s ease infinite;
-}
-
-@keyframes duelPulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.06);
-  }
+  border-color: color-mix(in srgb, #d87a90 50%, var(--border));
+  color: #f0b4c0;
 }
 
 .blind-mark {
@@ -980,6 +1025,10 @@ header h1 {
   left: 0;
   right: 0;
   bottom: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  align-self: stretch;
   z-index: 100;
   display: flex;
   flex-direction: column-reverse;
@@ -988,24 +1037,27 @@ header h1 {
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   border-top: 1px solid var(--border);
   backdrop-filter: blur(10px);
+  box-sizing: border-box;
 }
 
 .duel-inline-input {
   width: 100%;
   max-width: 560px;
+  margin: 0 auto;
 }
 
 .duel-autocomplete {
   list-style: none;
   width: 100%;
   max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
   max-height: 220px;
   overflow-y: auto;
   background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   margin-bottom: 6px;
-  box-shadow: var(--shadow);
 }
 
 .duel-autocomplete li {

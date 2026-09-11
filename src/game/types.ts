@@ -27,7 +27,7 @@ export const COLUMN_LABELS: Record<ColumnId, string> = {
 
 export const DIFFICULTY_COLUMNS: Record<Difficulty, ColumnId[]> = {
   easy: ["name", "gender", "weapon1", "weapon2", "year", "stats"],
-  medium: ["name", "weapon1", "weapon2", "stats"],
+  medium: ["name", "weapon1", "weapon2", "year"],
   hard: ["name", "weapon1", "weapon2"],
 };
 

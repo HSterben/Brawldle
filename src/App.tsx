@@ -40,10 +40,10 @@ const COLUMN_LABELS: Record<ColumnId, string> = {
   stats: "Stats",
 };
 
-/** Easy = full board. Medium drops Gender + Year. Hard keeps weapons only. */
+/** Easy = full board. Medium = legend + weapons + year. Hard keeps weapons only. */
 const DIFFICULTY_COLUMNS: Record<Difficulty, ColumnId[]> = {
   easy: ["name", "gender", "weapon1", "weapon2", "year", "stats"],
-  medium: ["name", "weapon1", "weapon2", "stats"],
+  medium: ["name", "weapon1", "weapon2", "year"],
   hard: ["name", "weapon1", "weapon2"],
 };
 
@@ -530,27 +530,20 @@ function App() {
             <div className="mode-banner">
               <div className="mode-banner-text">
                 <p className="mode-banner-kicker">
-                  {mode === "daily" ? "Today's challenge" : "Free play arena"}
+                  {mode === "daily" ? "Today's challenge" : "Free play"}
                 </p>
                 <h2 className="mode-banner-title">
                   {mode === "daily" ? "Daily" : "Unlimited"}
                 </h2>
               </div>
-              {mode === "daily" ? (
-                <div className="mode-banner-badge" aria-hidden="true">
-                  <span className="badge-day">{dateKey.slice(8)}</span>
-                  <span className="badge-month">
-                    {new Date(`${dateKey}T12:00:00`).toLocaleString("en-US", {
+              <p className="mode-banner-meta">
+                {mode === "daily"
+                  ? new Date(`${dateKey}T12:00:00`).toLocaleDateString("en-US", {
                       month: "short",
-                    })}
-                  </span>
-                </div>
-              ) : (
-                <div className="mode-banner-badge infinite" aria-hidden="true">
-                  <span className="badge-infinity">∞</span>
-                  <span className="badge-month">Rounds</span>
-                </div>
-              )}
+                      day: "numeric",
+                    })
+                  : "Endless rounds"}
+              </p>
             </div>
 
             <div id="game-area">
