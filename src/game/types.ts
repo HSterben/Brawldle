@@ -13,7 +13,9 @@ export type ColumnId = "name" | "gender" | "weapon1" | "weapon2" | "year" | "sta
 export type DuelRule = "shared" | "pick";
 
 export const MAX_GUESSES = 8;
-export const DUEL_GUESS_SECONDS = 25;
+export const GUESS_TIMER_OPTIONS = [10, 15, 25, 30, 45, 60] as const;
+export type GuessTimerSeconds = (typeof GUESS_TIMER_OPTIONS)[number];
+export const DUEL_GUESS_SECONDS: GuessTimerSeconds = 25;
 export const STAT_LABELS = ["STR", "DEX", "DEF", "SPD"] as const;
 
 export const COLUMN_LABELS: Record<ColumnId, string> = {

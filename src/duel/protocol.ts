@@ -1,6 +1,7 @@
 import type {
   Difficulty,
   DuelRule,
+  GuessTimerSeconds,
   Legend,
   PrivateGuessRow,
   PublicGuessRow,
@@ -8,12 +9,15 @@ import type {
 
 export type DuelPhase = "waiting" | "picking" | "playing" | "finished";
 
+export const MAX_LOBBY_PLAYERS = 8;
+
 export type DuelPlayerPublic = {
   id: string;
   name: string;
   connected: boolean;
   ready: boolean;
   picked: boolean;
+  spectating: boolean;
   guessCount: number;
   solved: boolean;
   finished: boolean;
@@ -26,6 +30,7 @@ export type DuelLobbyPublic = {
   phase: DuelPhase;
   rule: DuelRule;
   difficulty: Difficulty;
+  guessSeconds: GuessTimerSeconds;
   youAreHost: boolean;
   hostId: string;
   yourId: string;
@@ -42,6 +47,9 @@ export type ClientMessage =
   | { type: "join"; code: string; name?: string }
   | { type: "setRule"; rule: DuelRule }
   | { type: "setDifficulty"; difficulty: Difficulty }
+  | { type: "setGuessSeconds"; seconds: GuessTimerSeconds }
+  | { type: "setReady"; ready: boolean }
+  | { type: "kick"; playerId: string }
   | { type: "start" }
   | { type: "pick"; legendName: string }
   | { type: "guess"; legendName: string }

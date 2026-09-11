@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import legendsData from "../../data/legends.json";
-import { STAT_LABELS, COLUMN_LABELS, DIFFICULTY_COLUMNS, DUEL_GUESS_SECONDS } from "../game/types";
+import { STAT_LABELS, COLUMN_LABELS, DIFFICULTY_COLUMNS, DUEL_GUESS_SECONDS, GUESS_TIMER_OPTIONS } from "../game/types";
 import type {
   ColumnId,
   Difficulty,
@@ -10,7 +10,8 @@ import type {
   PrivateGuessRow,
   PublicGuessRow,
 } from "../game/types";
-import type { ClientMessage, DuelLobbyPublic, ServerMessage } from "./protocol";
+import type { ClientMessage, DuelLobbyPublic, DuelPlayerPublic, ServerMessage } from "./protocol";
+import { MAX_LOBBY_PLAYERS } from "./protocol";
 
 const legends = legendsData as Legend[];
 
@@ -29,7 +30,7 @@ function send(ws: WebSocket | null, message: ClientMessage) {
 }
 
 function useSecondsLeft(endsAt: number | null) {
-  const [left, setLeft] = useState(DUEL_GUESS_SECONDS);
+  const [left, setLeft] = useState<number>(DUEL_GUESS_SECONDS);
   useEffect(() => {
     if (!endsAt) {
       setLeft(DUEL_GUESS_SECONDS);
@@ -283,58 +284,126 @@ function BlindBoard({
   );
 }
 
+function playerStatusLabel(
+  player: DuelPlayerPublic,
+  lobby: DuelLobbyPublic,
+  phase: DuelLobbyPublic["phase"],
+) {
+  const parts: string[] = [];
+  if (player.id === lobby.hostId) parts.push("Host");
+  if (player.id === lobby.yourId) parts.push("You");
+
+  if (phase === "waiting") {
+    parts.push(player.ready ? "Ready" : "Spectate");
+  } else if (player.spectating) {
+    parts.push("Spectating");
+  } else if (phase === "picking") {
+    parts.push(player.picked ? "Ready" : "Picking");
+  } else if (phase === "playing") {
+    parts.push(player.finished ? (player.solved ? "Solved" : "Done") : "Playing");
+  } else if (phase === "finished") {
+    parts.push(player.solved ? `Solved · ${player.guessCount}` : "Missed");
+  }
+
+  return parts.join(" · ");
+}
+
+function PlayersDrawer({
+  lobby,
+  open,
+  onToggle,
+  onKick,
+}: {
+  lobby: DuelLobbyPublic;
+  open: boolean;
+  onToggle: () => void;
+  onKick: (playerId: string) => void;
+}) {
+  const readyCount = lobby.players.filter((player) => player.ready).length;
+
+  return (
+    <>
+      <button
+        type="button"
+        className={`duel-players-tab ${open ? "is-open" : ""}`}
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls="duel-players-drawer"
+      >
+        <span className="duel-players-tab-label">Players</span>
+        <span className="duel-players-tab-count">{lobby.players.length}</span>
+      </button>
+
+      <aside
+        id="duel-players-drawer"
+        className={`duel-players-drawer ${open ? "is-open" : ""}`}
+        aria-label="Lobby players"
+        aria-hidden={!open}
+      >
+        <div className="duel-players-drawer-head">
+          <div>
+            <p className="duel-members-title">Lobby</p>
+            <p className="duel-players-meta">
+              {lobby.players.length}/{MAX_LOBBY_PLAYERS}
+              {lobby.phase === "waiting" ? ` · ${readyCount} ready` : ""}
+            </p>
+          </div>
+          <button type="button" className="control-btn" onClick={onToggle}>
+            Close
+          </button>
+        </div>
+
+        <ul className="duel-member-list">
+          {lobby.players.map((player) => {
+            const isYou = player.id === lobby.yourId;
+            const canKick =
+              lobby.youAreHost &&
+              !isYou &&
+              (lobby.phase === "waiting" || lobby.phase === "picking");
+
+            return (
+              <li
+                key={player.id}
+                className={`duel-member ${
+                  player.ready && lobby.phase === "waiting" ? "is-ready" : ""
+                } ${player.spectating && lobby.phase !== "waiting" ? "is-spectating" : ""}`}
+              >
+                <div className="duel-member-info">
+                  <span className="duel-member-name">{player.name}</span>
+                  <span className="duel-member-role">
+                    {playerStatusLabel(player, lobby, lobby.phase)}
+                  </span>
+                </div>
+                {canKick && (
+                  <button
+                    type="button"
+                    className="duel-kick-btn"
+                    onClick={() => onKick(player.id)}
+                  >
+                    Kick
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </aside>
+
+      {open && (
+        <button
+          type="button"
+          className="duel-players-backdrop"
+          aria-label="Close players panel"
+          onClick={onToggle}
+        />
+      )}
+    </>
+  );
+}
+
 type DuelModeProps = {
   onExit: () => void;
 };
-
-function LobbyMembers({
-  lobby,
-  showPickReady,
-}: {
-  lobby: DuelLobbyPublic;
-  showPickReady?: boolean;
-}) {
-  const host = lobby.players.find((player) => player.id === lobby.hostId) || null;
-  const guest = lobby.players.find((player) => player.id !== lobby.hostId) || null;
-  const slots = [host, guest];
-
-  return (
-    <aside className="duel-members" aria-label="Lobby members">
-      <p className="duel-members-title">Players</p>
-      <ul className="duel-member-list">
-        {slots.map((player, index) => {
-          if (!player) {
-            return (
-              <li key={`empty-${index}`} className="duel-member empty">
-                <div>
-                  <span className="duel-member-name">Empty slot</span>
-                  <span className="duel-member-role">Waiting for player</span>
-                </div>
-              </li>
-            );
-          }
-
-          const isYou = player.id === lobby.yourId;
-          const isHost = player.id === lobby.hostId;
-          const roleParts = [
-            isHost ? "Host" : "Guest",
-            isYou ? "You" : null,
-            showPickReady ? (player.picked ? "Ready" : "Picking") : null,
-          ].filter(Boolean);
-
-          return (
-            <li key={player.id} className={`duel-member ${player.picked && showPickReady ? "is-ready" : ""}`}>
-              <div>
-                <span className="duel-member-name">{player.name}</span>
-                <span className="duel-member-role">{roleParts.join(" · ")}</span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </aside>
-  );
-}
 
 export default function DuelMode({ onExit }: DuelModeProps) {
   const [status, setStatus] = useState<"connecting" | "connected" | "error">("connecting");
@@ -345,6 +414,7 @@ export default function DuelMode({ onExit }: DuelModeProps) {
   const [pickInput, setPickInput] = useState("");
   const [guessInput, setGuessInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [playersOpen, setPlayersOpen] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
   const autoJoinDone = useRef(false);
 
@@ -385,11 +455,11 @@ export default function DuelMode({ onExit }: DuelModeProps) {
       if (cancelled) return;
       if (!opened) {
         setStatus("error");
-        setError("Could not connect to duel server. Is it running?");
+        setError("Could not connect to battle server. Is it running?");
         return;
       }
       setStatus("error");
-      setError("Disconnected from duel server.");
+      setError("Disconnected from battle server.");
       setLobby(null);
     };
 
@@ -403,7 +473,12 @@ export default function DuelMode({ onExit }: DuelModeProps) {
 
   const columns = DIFFICULTY_COLUMNS[lobby?.difficulty || "easy"];
   const you = lobby?.players.find((player) => player.id === lobby.yourId);
-  const foe = lobby?.players.find((player) => player.id !== lobby.yourId);
+  const activeOthers =
+    lobby?.players.filter(
+      (player) => player.id !== lobby.yourId && !player.spectating,
+    ) || [];
+  const readyCount = lobby?.players.filter((player) => player.ready).length || 0;
+  const youSpectating = Boolean(you?.spectating);
 
   const inviteUrl = lobby
     ? `${window.location.origin}${window.location.pathname}?duel=${lobby.code}`
@@ -424,15 +499,20 @@ export default function DuelMode({ onExit }: DuelModeProps) {
     window.history.replaceState({}, "", url.pathname);
   };
 
+  const winnerName =
+    lobby?.winnerId != null
+      ? lobby.players.find((player) => player.id === lobby.winnerId)?.name
+      : null;
+
   return (
-    <div className="duel-root">
+    <div className={`duel-root ${lobby ? "has-lobby" : ""}`}>
       <div className="duel-topbar">
         <button type="button" className="control-btn" onClick={onExit}>
           ← Modes
         </button>
         <div className="duel-topbar-title">
           <span className="mode-banner-kicker">Versus</span>
-          <strong>1v1 Duel</strong>
+          <strong>Battle</strong>
         </div>
         {lobby && (
           <button type="button" className="control-btn" onClick={leaveLobby}>
@@ -442,7 +522,7 @@ export default function DuelMode({ onExit }: DuelModeProps) {
       </div>
 
       {error && <div className="duel-error">{error}</div>}
-      {status === "connecting" && <p className="duel-status">Connecting to duel server…</p>}
+      {status === "connecting" && <p className="duel-status">Connecting to battle server…</p>}
       {status === "error" && !lobby && (
         <p className="duel-status">
           Start the server with <code>npm run duel</code> (or <code>npm run dev:all</code>).
@@ -498,6 +578,15 @@ export default function DuelMode({ onExit }: DuelModeProps) {
         </div>
       )}
 
+      {lobby && (
+        <PlayersDrawer
+          lobby={lobby}
+          open={playersOpen}
+          onToggle={() => setPlayersOpen((prev) => !prev)}
+          onKick={(playerId) => send(wsRef.current, { type: "kick", playerId })}
+        />
+      )}
+
       {lobby && lobby.phase === "waiting" && (
         <div className="duel-shell">
           <div className="duel-lobby-main">
@@ -506,7 +595,9 @@ export default function DuelMode({ onExit }: DuelModeProps) {
                 <p className="mode-banner-kicker">Lobby</p>
                 <h2 className="mode-banner-title">{lobby.code}</h2>
                 <p className="mode-banner-copy">
-                  {foe ? `${you?.name} vs ${foe.name}` : "Share the code or link to invite a friend."}
+                  {lobby.players.length > 1
+                    ? `${lobby.players.length} players in lobby · ${readyCount} ready`
+                    : "Share the code or link to invite players."}
                 </p>
               </div>
               <button type="button" className="play-again-btn" onClick={copyInvite}>
@@ -518,6 +609,23 @@ export default function DuelMode({ onExit }: DuelModeProps) {
               <code>{inviteUrl}</code>
             </div>
 
+            {you && (
+              <div className="duel-ready-controls">
+                <p className="duel-ready-hint">
+                  Ready to play, or stay unready to spectate when the match starts.
+                </p>
+                <button
+                  type="button"
+                  className={`play-again-btn ${you.ready ? "" : "secondary"}`}
+                  onClick={() =>
+                    send(wsRef.current, { type: "setReady", ready: !you.ready })
+                  }
+                >
+                  {you.ready ? "Unready (spectate)" : "Ready up"}
+                </button>
+              </div>
+            )}
+
             {lobby.youAreHost ? (
               <div className="duel-host-settings">
                 <p className="difficulty-label">Match rule</p>
@@ -525,7 +633,7 @@ export default function DuelMode({ onExit }: DuelModeProps) {
                   {(
                     [
                       ["shared", "Same random"],
-                      ["pick", "Pick for each other"],
+                      ["pick", "Pick for others"],
                     ] as [DuelRule, string][]
                   ).map(([rule, label]) => (
                     <button
@@ -540,8 +648,8 @@ export default function DuelMode({ onExit }: DuelModeProps) {
                 </div>
                 <p className="duel-rule-help">
                   {lobby.rule === "shared"
-                    ? "Both players hunt the same secret legend."
-                    : "Each player secretly picks the legend the opponent must guess."}
+                    ? "Every ready player hunts the same secret legend."
+                    : "Each ready player secretly picks a legend; picks are shuffled so nobody gets their own."}
                 </p>
 
                 <p className="difficulty-label">Difficulty</p>
@@ -560,21 +668,38 @@ export default function DuelMode({ onExit }: DuelModeProps) {
                   ))}
                 </div>
 
+                <p className="difficulty-label">Time per guess</p>
+                <div className="control-group">
+                  {GUESS_TIMER_OPTIONS.map((seconds) => (
+                    <button
+                      key={seconds}
+                      type="button"
+                      className={`control-btn ${lobby.guessSeconds === seconds ? "active" : ""}`}
+                      onClick={() =>
+                        send(wsRef.current, { type: "setGuessSeconds", seconds })
+                      }
+                    >
+                      {seconds}s
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   className="play-again-btn"
-                  disabled={!foe}
+                  disabled={readyCount < 2}
                   onClick={() => send(wsRef.current, { type: "start" })}
                 >
-                  Start duel
+                  Start battle
                 </button>
+                {readyCount < 2 && (
+                  <p className="duel-status">Need at least 2 ready players to start.</p>
+                )}
               </div>
             ) : (
               <p className="duel-status">Host is setting the match rules…</p>
             )}
           </div>
-
-          <LobbyMembers lobby={lobby} />
         </div>
       )}
 
@@ -584,29 +709,36 @@ export default function DuelMode({ onExit }: DuelModeProps) {
             <div className="mode-banner">
               <div className="mode-banner-text">
                 <p className="mode-banner-kicker">Secret pick</p>
-                <h2 className="mode-banner-title">Choose their legend</h2>
+                <h2 className="mode-banner-title">
+                  {youSpectating ? "Spectating picks" : "Choose a legend"}
+                </h2>
                 <p className="mode-banner-copy">
-                  {you?.picked
-                    ? "Locked in. Waiting for opponent…"
-                    : "Pick the legend your opponent has to guess."}
+                  {youSpectating
+                    ? "You were unready at start, so you are spectating this round."
+                    : you?.picked
+                      ? "Locked in. Waiting for everyone else…"
+                      : "Pick a legend for someone else. You will not receive your own pick."}
                 </p>
               </div>
             </div>
 
             <div className="duel-ready-status">
-              <div className={`duel-ready-row ${you?.picked ? "ready" : ""}`}>
-                <span className="label">You</span>
-                <span className="value">{you?.picked ? "Ready" : "Picking…"}</span>
-              </div>
-              <div className={`duel-ready-row ${foe?.picked ? "ready" : ""}`}>
-                <span className="label">{foe?.name || "Opponent"}</span>
-                <span className="value">
-                  {foe?.picked ? "Opponent ready" : "Waiting…"}
-                </span>
-              </div>
+              {lobby.players
+                .filter((player) => !player.spectating)
+                .map((player) => (
+                  <div
+                    key={player.id}
+                    className={`duel-ready-row ${player.picked ? "ready" : ""}`}
+                  >
+                    <span className="label">
+                      {player.id === lobby.yourId ? "You" : player.name}
+                    </span>
+                    <span className="value">{player.picked ? "Ready" : "Picking…"}</span>
+                  </div>
+                ))}
             </div>
 
-            {!you?.picked && (
+            {!youSpectating && !you?.picked && (
               <AutocompleteInput
                 value={pickInput}
                 onChange={setPickInput}
@@ -617,8 +749,6 @@ export default function DuelMode({ onExit }: DuelModeProps) {
               />
             )}
           </div>
-
-          <LobbyMembers lobby={lobby} showPickReady />
         </div>
       )}
 
@@ -627,32 +757,47 @@ export default function DuelMode({ onExit }: DuelModeProps) {
           <div className="duel-match-meta">
             <span>
               {lobby.rule === "shared" ? "Shared legend" : "Picked legends"} · {lobby.difficulty}
+              {youSpectating ? " · Spectating" : ""}
             </span>
             <span>
-              Least guesses wins · {DUEL_GUESS_SECONDS}s per guess
+              Least guesses wins · {lobby.guessSeconds}s per guess
             </span>
           </div>
 
-          <div className="duel-boards">
-            <PrivateBoard
-              title={you?.name || "You"}
-              subtitle="Your board"
-              rows={lobby.yourPrivateRows}
-              columns={columns}
-              timerEndsAt={you?.timerEndsAt ?? null}
-              finished={Boolean(you?.finished)}
-            />
-            <BlindBoard
-              title={foe?.name || "Opponent"}
-              subtitle="Opponent (colors only)"
-              rows={foe?.rows || []}
-              columns={columns}
-              timerEndsAt={foe?.timerEndsAt ?? null}
-              finished={Boolean(foe?.finished)}
-            />
+          {youSpectating && lobby.phase === "playing" && (
+            <p className="duel-status">
+              You are spectating this round. Ready up after the match to play next time.
+            </p>
+          )}
+
+          <div className={`duel-boards ${youSpectating ? "spectating" : ""}`}>
+            {!youSpectating && (
+              <PrivateBoard
+                title={you?.name || "You"}
+                subtitle="Your board"
+                rows={lobby.yourPrivateRows}
+                columns={columns}
+                timerEndsAt={you?.timerEndsAt ?? null}
+                finished={Boolean(you?.finished)}
+              />
+            )}
+            {(youSpectating
+              ? lobby.players.filter((player) => !player.spectating)
+              : activeOthers
+            ).map((player) => (
+              <BlindBoard
+                key={player.id}
+                title={player.name}
+                subtitle={youSpectating ? "Colors only" : "Opponent (colors only)"}
+                rows={player.rows}
+                columns={columns}
+                timerEndsAt={player.timerEndsAt}
+                finished={Boolean(player.finished)}
+              />
+            ))}
           </div>
 
-          {lobby.phase === "playing" && !you?.finished && (
+          {lobby.phase === "playing" && !youSpectating && !you?.finished && (
             <AutocompleteInput
               value={guessInput}
               onChange={setGuessInput}
@@ -671,12 +816,19 @@ export default function DuelMode({ onExit }: DuelModeProps) {
                   ? "Draw!"
                   : lobby.winnerId === lobby.yourId
                     ? "You win!"
-                    : `${foe?.name || "Opponent"} wins!`}
+                    : `${winnerName || "Someone"} wins!`}
               </div>
               <p className="duel-status">
-                You {you?.solved ? `solved in ${you.guessCount}` : `missed (${you?.guessCount || 0})`}{" "}
-                · Opponent{" "}
-                {foe?.solved ? `solved in ${foe.guessCount}` : `missed (${foe?.guessCount || 0})`}
+                {lobby.players
+                  .filter((player) => !player.spectating)
+                  .map((player) => {
+                    const label = player.id === lobby.yourId ? "You" : player.name;
+                    const result = player.solved
+                      ? `solved in ${player.guessCount}`
+                      : `missed (${player.guessCount})`;
+                    return `${label} ${result}`;
+                  })
+                  .join(" · ")}
                 {lobby.yourAnswer ? (
                   <>
                     <br />

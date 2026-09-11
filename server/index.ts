@@ -9,9 +9,11 @@ import {
 import {
   DIFFICULTY_COLUMNS,
   DUEL_GUESS_SECONDS,
+  GUESS_TIMER_OPTIONS,
   MAX_GUESSES,
   type Difficulty,
   type DuelRule,
+  type GuessTimerSeconds,
   type Legend,
   type PrivateGuessRow,
 } from "../src/game/types.ts";
@@ -22,6 +24,7 @@ import type {
   DuelPlayerPublic,
   ServerMessage,
 } from "../src/duel/protocol.ts";
+import { MAX_LOBBY_PLAYERS } from "../src/duel/protocol.ts";
 
 const PORT = Number(process.env.PORT || 3001);
 const legends = legendsData as Legend[];
@@ -32,6 +35,7 @@ type Player = {
   name: string;
   ws: WebSocket;
   ready: boolean;
+  spectating: boolean;
   pick?: string;
   answer?: string;
   rows: PrivateGuessRow[];
@@ -47,6 +51,7 @@ type Lobby = {
   phase: DuelPhase;
   rule: DuelRule;
   difficulty: Difficulty;
+  guessSeconds: GuessTimerSeconds;
   players: Map<string, Player>;
   sharedAnswer?: string;
   createdAt: number;
@@ -98,6 +103,24 @@ function destroyLobby(code: string) {
   lobbies.delete(code);
 }
 
+function activePlayers(lobby: Lobby) {
+  return [...lobby.players.values()].filter((player) => !player.spectating);
+}
+
+/** Random permutation with no fixed points (nobody receives their own pick). */
+function randomDerangement(n: number): number[] {
+  if (n < 2) return [...Array(n).keys()];
+  const order = [...Array(n).keys()];
+  for (let attempt = 0; attempt < 200; attempt++) {
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    if (order.every((value, index) => value !== index)) return order;
+  }
+  return [...Array(n).keys()].map((i) => (i + 1) % n);
+}
+
 function publicPlayers(lobby: Lobby, viewerId: string): DuelPlayerPublic[] {
   return [...lobby.players.values()].map((player) => ({
     id: player.id,
@@ -105,6 +128,7 @@ function publicPlayers(lobby: Lobby, viewerId: string): DuelPlayerPublic[] {
     connected: player.ws.readyState === WebSocket.OPEN,
     ready: player.ready,
     picked: Boolean(player.pick),
+    spectating: player.spectating,
     guessCount: player.guessCount,
     solved: player.solved,
     finished: player.finished,
@@ -126,6 +150,7 @@ function lobbyPayload(lobby: Lobby, viewerId: string): DuelLobbyPublic {
     phase: lobby.phase,
     rule: lobby.rule,
     difficulty: lobby.difficulty,
+    guessSeconds: lobby.guessSeconds,
     youAreHost: lobby.hostId === viewerId,
     hostId: lobby.hostId,
     yourId: viewerId,
@@ -142,7 +167,7 @@ function withResult(lobby: Lobby, viewerId: string): DuelLobbyPublic {
   const payload = lobbyPayload(lobby, viewerId);
   if (lobby.phase !== "finished") return payload;
 
-  const players = [...lobby.players.values()];
+  const players = activePlayers(lobby);
   const solvers = players.filter((p) => p.solved);
   if (solvers.length === 0) {
     payload.draw = true;
@@ -169,27 +194,23 @@ function broadcastLobby(lobby: Lobby) {
   }
 }
 
-function bothConnected(lobby: Lobby) {
-  return lobby.players.size === 2;
-}
-
 function startTimers(lobby: Lobby) {
-  const endsAt = Date.now() + DUEL_GUESS_SECONDS * 1000;
-  for (const player of lobby.players.values()) {
+  const endsAt = Date.now() + lobby.guessSeconds * 1000;
+  for (const player of activePlayers(lobby)) {
     if (!player.finished) player.timerEndsAt = endsAt;
   }
 }
 
 function maybeFinish(lobby: Lobby) {
-  const players = [...lobby.players.values()];
-  if (players.every((p) => p.finished)) {
+  const players = activePlayers(lobby);
+  if (players.length === 0 || players.every((p) => p.finished)) {
     lobby.phase = "finished";
-    for (const player of players) player.timerEndsAt = null;
+    for (const player of lobby.players.values()) player.timerEndsAt = null;
   }
 }
 
 function assignAnswers(lobby: Lobby) {
-  const players = [...lobby.players.values()];
+  const players = activePlayers(lobby);
   if (lobby.rule === "shared") {
     const answer = legends[Math.floor(Math.random() * legends.length)];
     lobby.sharedAnswer = answer.name;
@@ -197,9 +218,20 @@ function assignAnswers(lobby: Lobby) {
     return;
   }
 
-  const [a, b] = players;
-  a.answer = b.pick;
-  b.answer = a.pick;
+  const perm = randomDerangement(players.length);
+  for (let i = 0; i < players.length; i++) {
+    players[i].answer = players[perm[i]].pick;
+  }
+}
+
+function clearMatchState(player: Player) {
+  player.pick = undefined;
+  player.answer = undefined;
+  player.rows = [];
+  player.guessCount = 0;
+  player.solved = false;
+  player.finished = false;
+  player.timerEndsAt = null;
 }
 
 function resetMatch(lobby: Lobby) {
@@ -208,30 +240,30 @@ function resetMatch(lobby: Lobby) {
   lobby.createdAt = Date.now();
   for (const player of lobby.players.values()) {
     player.ready = false;
-    player.pick = undefined;
-    player.answer = undefined;
-    player.rows = [];
-    player.guessCount = 0;
-    player.solved = false;
-    player.finished = false;
-    player.timerEndsAt = null;
+    player.spectating = false;
+    clearMatchState(player);
   }
 }
 
-function createLobby(ws: WebSocket, name?: string) {
-  const code = uniqueCode();
-  const playerId = crypto.randomUUID();
-  const player: Player = {
-    id: playerId,
-    name: playerName(name, "Host"),
+function makePlayer(ws: WebSocket, id: string, name: string): Player {
+  return {
+    id,
+    name,
     ws,
     ready: false,
+    spectating: false,
     rows: [],
     guessCount: 0,
     solved: false,
     finished: false,
     timerEndsAt: null,
   };
+}
+
+function createLobby(ws: WebSocket, name?: string) {
+  const code = uniqueCode();
+  const playerId = crypto.randomUUID();
+  const player = makePlayer(ws, playerId, playerName(name, "Host"));
 
   const lobby: Lobby = {
     code,
@@ -239,6 +271,7 @@ function createLobby(ws: WebSocket, name?: string) {
     phase: "waiting",
     rule: "shared",
     difficulty: "easy",
+    guessSeconds: DUEL_GUESS_SECONDS,
     players: new Map([[playerId, player]]),
     createdAt: Date.now(),
   };
@@ -261,28 +294,84 @@ function joinLobby(ws: WebSocket, codeRaw: string, name?: string) {
     send(ws, { type: "error", message: "That lobby already started." });
     return;
   }
-  if (lobby.players.size >= 2) {
+  if (lobby.players.size >= MAX_LOBBY_PLAYERS) {
     send(ws, { type: "error", message: "Lobby is full." });
     return;
   }
 
   const playerId = crypto.randomUUID();
-  const player: Player = {
-    id: playerId,
-    name: playerName(name, "Guest"),
-    ws,
-    ready: false,
-    rows: [],
-    guessCount: 0,
-    solved: false,
-    finished: false,
-    timerEndsAt: null,
-  };
+  const player = makePlayer(ws, playerId, playerName(name, `Player ${lobby.players.size + 1}`));
 
   lobby.players.set(playerId, player);
   socketToLobby.set(ws, code);
   socketToPlayer.set(ws, playerId);
   send(ws, { type: "hello", playerId });
+  broadcastLobby(lobby);
+}
+
+function handleKick(lobby: Lobby, hostId: string, targetId: string) {
+  if (lobby.hostId !== hostId) {
+    const host = lobby.players.get(hostId);
+    if (host) send(host.ws, { type: "error", message: "Only the host can kick." });
+    return;
+  }
+  if (lobby.phase !== "waiting" && lobby.phase !== "picking") {
+    const host = lobby.players.get(hostId);
+    if (host) send(host.ws, { type: "error", message: "Cannot kick during a match." });
+    return;
+  }
+  if (targetId === hostId) {
+    const host = lobby.players.get(hostId);
+    if (host) send(host.ws, { type: "error", message: "You cannot kick yourself." });
+    return;
+  }
+
+  const target = lobby.players.get(targetId);
+  if (!target) return;
+
+  send(target.ws, { type: "gone", message: "You were kicked from the lobby." });
+  socketToLobby.delete(target.ws);
+  socketToPlayer.delete(target.ws);
+  lobby.players.delete(targetId);
+
+  if (lobby.phase === "picking") {
+    const remaining = activePlayers(lobby);
+    if (remaining.length < 2) {
+      resetMatch(lobby);
+      broadcastLobby(lobby);
+      return;
+    }
+    const allPicked = remaining.every((p) => p.pick);
+    if (allPicked) {
+      assignAnswers(lobby);
+      lobby.phase = "playing";
+      startTimers(lobby);
+    }
+  }
+
+  broadcastLobby(lobby);
+}
+
+function handleSetReady(lobby: Lobby, playerId: string, ready: boolean) {
+  if (lobby.phase !== "waiting") return;
+  const player = lobby.players.get(playerId);
+  if (!player) return;
+  player.ready = Boolean(ready);
+  broadcastLobby(lobby);
+}
+
+function isGuessTimerOption(seconds: number): seconds is GuessTimerSeconds {
+  return (GUESS_TIMER_OPTIONS as readonly number[]).includes(seconds);
+}
+
+function handleSetGuessSeconds(lobby: Lobby, playerId: string, seconds: number) {
+  if (lobby.hostId !== playerId || lobby.phase !== "waiting") return;
+  if (!isGuessTimerOption(seconds)) {
+    const host = lobby.players.get(playerId);
+    if (host) send(host.ws, { type: "error", message: "Invalid guess timer." });
+    return;
+  }
+  lobby.guessSeconds = seconds;
   broadcastLobby(lobby);
 }
 
@@ -292,21 +381,22 @@ function handleStart(lobby: Lobby, playerId: string) {
     if (host) send(host.ws, { type: "error", message: "Only the host can start." });
     return;
   }
-  if (!bothConnected(lobby)) {
+
+  const ready = [...lobby.players.values()].filter((p) => p.ready);
+  if (ready.length < 2) {
     const host = lobby.players.get(playerId);
-    if (host) send(host.ws, { type: "error", message: "Need a second player first." });
+    if (host) {
+      send(host.ws, {
+        type: "error",
+        message: "Need at least 2 ready players to start.",
+      });
+    }
     return;
   }
 
   for (const player of lobby.players.values()) {
-    player.ready = false;
-    player.pick = undefined;
-    player.answer = undefined;
-    player.rows = [];
-    player.guessCount = 0;
-    player.solved = false;
-    player.finished = false;
-    player.timerEndsAt = null;
+    player.spectating = !player.ready;
+    clearMatchState(player);
   }
 
   if (lobby.rule === "pick") {
@@ -322,7 +412,7 @@ function handleStart(lobby: Lobby, playerId: string) {
 function handlePick(lobby: Lobby, playerId: string, legendName: string) {
   if (lobby.phase !== "picking") return;
   const player = lobby.players.get(playerId);
-  if (!player || player.pick) return;
+  if (!player || player.spectating || player.pick) return;
 
   const legend = findLegend(legendName);
   if (!legend) {
@@ -332,7 +422,7 @@ function handlePick(lobby: Lobby, playerId: string, legendName: string) {
 
   player.pick = legend.name;
 
-  const allPicked = [...lobby.players.values()].every((p) => p.pick);
+  const allPicked = activePlayers(lobby).every((p) => p.pick);
   if (allPicked) {
     assignAnswers(lobby);
     lobby.phase = "playing";
@@ -349,7 +439,7 @@ function finishPlayer(player: Player) {
 function handleGuess(lobby: Lobby, playerId: string, legendName: string) {
   if (lobby.phase !== "playing") return;
   const player = lobby.players.get(playerId);
-  if (!player || player.finished || !player.answer) return;
+  if (!player || player.spectating || player.finished || !player.answer) return;
 
   const legend = findLegend(legendName);
   if (!legend) {
@@ -376,7 +466,7 @@ function handleGuess(lobby: Lobby, playerId: string, legendName: string) {
   } else if (player.guessCount >= MAX_GUESSES) {
     finishPlayer(player);
   } else {
-    player.timerEndsAt = Date.now() + DUEL_GUESS_SECONDS * 1000;
+    player.timerEndsAt = Date.now() + lobby.guessSeconds * 1000;
   }
 
   maybeFinish(lobby);
@@ -384,7 +474,7 @@ function handleGuess(lobby: Lobby, playerId: string, legendName: string) {
 }
 
 function applyTimeout(lobby: Lobby, player: Player) {
-  if (lobby.phase !== "playing" || player.finished) return;
+  if (lobby.phase !== "playing" || player.spectating || player.finished) return;
   const columns = DIFFICULTY_COLUMNS[lobby.difficulty];
   const row = buildTimeoutRow(columns);
   player.rows.push(row);
@@ -393,7 +483,7 @@ function applyTimeout(lobby: Lobby, player: Player) {
   if (player.guessCount >= MAX_GUESSES) {
     finishPlayer(player);
   } else {
-    player.timerEndsAt = Date.now() + DUEL_GUESS_SECONDS * 1000;
+    player.timerEndsAt = Date.now() + lobby.guessSeconds * 1000;
   }
 
   maybeFinish(lobby);
@@ -445,6 +535,15 @@ function handleMessage(ws: WebSocket, raw: string) {
         broadcastLobby(lobby);
       }
       break;
+    case "setGuessSeconds":
+      handleSetGuessSeconds(lobby, playerId, message.seconds);
+      break;
+    case "setReady":
+      handleSetReady(lobby, playerId, message.ready);
+      break;
+    case "kick":
+      handleKick(lobby, playerId, message.playerId);
+      break;
     case "start":
       handleStart(lobby, playerId);
       break;
@@ -466,6 +565,11 @@ function handleMessage(ws: WebSocket, raw: string) {
   }
 }
 
+function promoteHost(lobby: Lobby) {
+  const next = [...lobby.players.values()][0];
+  if (next) lobby.hostId = next.id;
+}
+
 function detachSocket(ws: WebSocket, _notifyGone: boolean) {
   const code = socketToLobby.get(ws);
   const playerId = socketToPlayer.get(ws);
@@ -478,7 +582,11 @@ function detachSocket(ws: WebSocket, _notifyGone: boolean) {
 
   if (lobby.phase === "waiting" || lobby.phase === "picking") {
     lobby.players.delete(playerId);
-    if (lobby.players.size === 0 || playerId === lobby.hostId) {
+    if (lobby.players.size === 0) {
+      destroyLobby(code);
+      return;
+    }
+    if (playerId === lobby.hostId) {
       for (const remaining of lobby.players.values()) {
         send(remaining.ws, { type: "gone", message: "Host left. Lobby closed." });
         socketToLobby.delete(remaining.ws);
@@ -487,31 +595,50 @@ function detachSocket(ws: WebSocket, _notifyGone: boolean) {
       destroyLobby(code);
       return;
     }
-    const [remaining] = lobby.players.values();
-    lobby.hostId = remaining.id;
+
+    if (lobby.phase === "picking") {
+      const remaining = activePlayers(lobby);
+      if (remaining.length < 2) {
+        resetMatch(lobby);
+        broadcastLobby(lobby);
+        return;
+      }
+      const allPicked = remaining.every((p) => p.pick);
+      if (allPicked) {
+        assignAnswers(lobby);
+        lobby.phase = "playing";
+        startTimers(lobby);
+      }
+    }
+
     broadcastLobby(lobby);
     return;
   }
 
   if (lobby.phase === "finished") {
     lobby.players.delete(playerId);
-    if (lobby.players.size === 0) destroyLobby(code);
-    else broadcastLobby(lobby);
+    if (lobby.players.size === 0) {
+      destroyLobby(code);
+      return;
+    }
+    if (playerId === lobby.hostId) promoteHost(lobby);
+    broadcastLobby(lobby);
     return;
   }
 
   const player = lobby.players.get(playerId);
-  if (player && !player.finished) {
+  if (player && !player.spectating && !player.finished) {
     player.finished = true;
     player.timerEndsAt = null;
     maybeFinish(lobby);
-    broadcastLobby(lobby);
   }
+  if (playerId === lobby.hostId) promoteHost(lobby);
+  broadcastLobby(lobby);
 }
 
 const server = createServer((_req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Brawldle duel websocket server");
+  res.end("Brawldle battle websocket server");
 });
 
 const wss = new WebSocketServer({ server });
@@ -526,7 +653,7 @@ setInterval(() => {
   const now = Date.now();
   for (const lobby of lobbies.values()) {
     if (lobby.phase !== "playing") continue;
-    for (const player of lobby.players.values()) {
+    for (const player of activePlayers(lobby)) {
       if (player.finished || !player.timerEndsAt) continue;
       if (now >= player.timerEndsAt) applyTimeout(lobby, player);
     }
@@ -551,5 +678,5 @@ server.on("error", (error: NodeJS.ErrnoException) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Duel WebSocket server on ws://localhost:${PORT}`);
+  console.log(`Battle WebSocket server on ws://localhost:${PORT}`);
 });

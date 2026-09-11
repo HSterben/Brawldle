@@ -501,8 +501,8 @@ function App() {
           disabled={modeSwitching}
         >
           <span className="mode-card-kicker">Versus</span>
-          <span className="mode-card-title">1v1</span>
-          <span className="mode-card-copy">Host a lobby & duel a friend.</span>
+          <span className="mode-card-title">Battle</span>
+          <span className="mode-card-copy">Host a lobby & play with friends.</span>
         </button>
       </div>
 
