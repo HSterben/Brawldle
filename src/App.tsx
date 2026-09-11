@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import legendsData from "../data/legends.json";
+import DuelMode from "./duel/DuelMode";
 
 gsap.registerPlugin(useGSAP);
 
@@ -15,7 +16,7 @@ type Legend = {
 };
 
 type Hint = "green" | "yellow" | "grey";
-type GameMode = "daily" | "unlimited";
+type GameMode = "daily" | "unlimited" | "duel";
 type Difficulty = "easy" | "medium" | "hard";
 type ColumnId = "name" | "gender" | "weapon1" | "weapon2" | "year" | "stats";
 
@@ -124,7 +125,10 @@ function formatCountdown(ms: number) {
 }
 
 function App() {
-  const [mode, setMode] = useState<GameMode>("daily");
+  const [mode, setMode] = useState<GameMode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("duel") ? "duel" : "daily";
+  });
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [dateKey, setDateKey] = useState(() => getLocalDateKey());
 
@@ -141,8 +145,6 @@ function App() {
 
   const appRef = useRef<HTMLDivElement>(null);
   const modeStageRef = useRef<HTMLDivElement>(null);
-  const modeFlashRef = useRef<HTMLDivElement>(null);
-  const modeDirRef = useRef(1);
   const prevModeRef = useRef<GameMode | null>(null);
 
   const columns = DIFFICULTY_COLUMNS[difficulty];
@@ -218,67 +220,36 @@ function App() {
   useGSAP(
     () => {
       const stage = modeStageRef.current;
-      const flash = modeFlashRef.current;
       const isFirst = prevModeRef.current === null;
       const modeChanged = prevModeRef.current !== null && prevModeRef.current !== mode;
       prevModeRef.current = mode;
 
       if (!stage || isFirst || !modeChanged) {
-        if (stage) gsap.set(stage, { clearProps: "transform,opacity,filter" });
-        if (flash) gsap.set(flash, { autoAlpha: 0, scale: 1.1 });
+        if (stage) gsap.set(stage, { clearProps: "transform,opacity" });
         setModeSwitching(false);
         return;
       }
 
       const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduced) {
-        gsap.set(stage, { clearProps: "transform,opacity,filter" });
-        if (flash) gsap.set(flash, { autoAlpha: 0 });
+        gsap.set(stage, { clearProps: "transform,opacity" });
         setModeSwitching(false);
         return;
       }
 
-      const dir = modeDirRef.current;
-      const tl = gsap.timeline({
-        onComplete: () => setModeSwitching(false),
-      });
-
-      if (flash) {
-        tl.fromTo(
-          flash,
-          { autoAlpha: 0, scale: 1.18, y: 18 * dir },
-          { autoAlpha: 1, scale: 1, y: 0, duration: 0.28, ease: "power3.out" },
-        ).to(flash, {
-          autoAlpha: 0,
-          scale: 0.92,
-          y: -12 * dir,
-          duration: 0.28,
-          ease: "power2.in",
-          delay: 0.12,
-        });
-      }
-
-      tl.fromTo(
+      gsap.fromTo(
         stage,
-        {
-          opacity: 0,
-          x: 48 * dir,
-          y: 16,
-          rotateY: -8 * dir,
-          scale: 0.94,
-          filter: "blur(10px)",
-        },
+        { opacity: 0, y: 8 },
         {
           opacity: 1,
-          x: 0,
           y: 0,
-          rotateY: 0,
-          scale: 1,
-          filter: "blur(0px)",
-          duration: 0.55,
-          ease: "power3.out",
+          duration: 0.28,
+          ease: "power2.out",
+          onComplete: () => {
+            gsap.set(stage, { clearProps: "transform,opacity" });
+            setModeSwitching(false);
+          },
         },
-        "-=0.18",
       );
     },
     { dependencies: [mode], scope: appRef },
@@ -288,8 +259,14 @@ function App() {
     if (next === mode || modeSwitching) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const dir = next === "unlimited" ? 1 : -1;
-    modeDirRef.current = dir;
+
+    if (next !== "duel") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("duel")) {
+        url.searchParams.delete("duel");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+      }
+    }
 
     if (reduced) {
       setMode(next);
@@ -305,14 +282,13 @@ function App() {
     setModeSwitching(true);
     gsap.to(stage, {
       opacity: 0,
-      x: -42 * dir,
-      y: -8,
-      rotateY: 6 * dir,
-      scale: 0.95,
-      filter: "blur(8px)",
-      duration: 0.28,
-      ease: "power2.in",
-      onComplete: () => setMode(next),
+      y: -6,
+      duration: 0.16,
+      ease: "power1.in",
+      onComplete: () => {
+        gsap.set(stage, { clearProps: "transform,opacity" });
+        setMode(next);
+      },
     });
   });
 
@@ -518,188 +494,210 @@ function App() {
           <span className="mode-card-title">Unlimited</span>
           <span className="mode-card-copy">Endless rounds.</span>
         </button>
-      </div>
-
-      <div className="controls">
-        <p className="difficulty-label">Difficulty</p>
-        <div className="control-group" role="group" aria-label="Difficulty">
-          {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
-            <button
-              key={level}
-              type="button"
-              className={`control-btn ${difficulty === level ? "active" : ""}`}
-              onClick={() => setDifficulty(level)}
-            >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mode-flash" ref={modeFlashRef} aria-hidden="true">
-        <span className="mode-flash-kicker">{mode === "daily" ? "Challenge" : "Free play"}</span>
-        <span className="mode-flash-title">{mode === "daily" ? "Daily" : "Unlimited"}</span>
+        <button
+          type="button"
+          className={`mode-card ${mode === "duel" ? "active" : ""}`}
+          onClick={() => requestMode("duel")}
+          disabled={modeSwitching}
+        >
+          <span className="mode-card-kicker">Versus</span>
+          <span className="mode-card-title">1v1</span>
+          <span className="mode-card-copy">Host a lobby & duel a friend.</span>
+        </button>
       </div>
 
       <div className="mode-stage" ref={modeStageRef}>
-        <div className="mode-banner">
-          <div className="mode-banner-text">
-            <p className="mode-banner-kicker">
-              {mode === "daily" ? "Today's challenge" : "Free play arena"}
-            </p>
-            <h2 className="mode-banner-title">{mode === "daily" ? "Daily" : "Unlimited"}</h2>
-
-          </div>
-          {mode === "daily" ? (
-            <div className="mode-banner-badge" aria-hidden="true">
-              <span className="badge-day">{dateKey.slice(8)}</span>
-              <span className="badge-month">
-                {new Date(`${dateKey}T12:00:00`).toLocaleString("en-US", { month: "short" })}
-              </span>
-            </div>
-          ) : (
-            <div className="mode-banner-badge infinite" aria-hidden="true">
-              <span className="badge-infinity">∞</span>
-              <span className="badge-month">Rounds</span>
-            </div>
-          )}
-        </div>
-
-        <div id="game-area">
-          <div className={`guess-row header-row cols-${columns.length}`}>
-            {columns.map((column) => (
-              <div
-                key={column}
-                className={`cell ${column === "name" ? "cell-name" : ""} ${
-                  column === "stats" ? "cell-stats" : ""
-                }`}
-              >
-                {COLUMN_LABELS[column]}
+        {mode === "duel" ? (
+          <DuelMode onExit={() => requestMode("daily")} />
+        ) : (
+          <>
+            <div className="controls">
+              <p className="difficulty-label">Difficulty</p>
+              <div className="control-group" role="group" aria-label="Difficulty">
+                {(["easy", "medium", "hard"] as Difficulty[]).map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    className={`control-btn ${difficulty === level ? "active" : ""}`}
+                    onClick={() => setDifficulty(level)}
+                  >
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div id="guesses">
-            {guesses.map((guess) => {
-              const isCorrect = guess.name === answer.name;
-              return (
-                <div
-                  key={guess.name}
-                  className={`guess-row cols-${columns.length} ${isCorrect ? "correct" : ""}`}
-                >
-                  {columns.map((column) => renderColumn(column, guess, guess.name))}
+            <div className="mode-banner">
+              <div className="mode-banner-text">
+                <p className="mode-banner-kicker">
+                  {mode === "daily" ? "Today's challenge" : "Free play arena"}
+                </p>
+                <h2 className="mode-banner-title">
+                  {mode === "daily" ? "Daily" : "Unlimited"}
+                </h2>
+              </div>
+              {mode === "daily" ? (
+                <div className="mode-banner-badge" aria-hidden="true">
+                  <span className="badge-day">{dateKey.slice(8)}</span>
+                  <span className="badge-month">
+                    {new Date(`${dateKey}T12:00:00`).toLocaleString("en-US", {
+                      month: "short",
+                    })}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="guess-counter">
-            {guesses.length} / {MAX_GUESSES} guesses
-          </div>
-        </div>
-
-        {gameOver && (
-          <div id="result-banner">
-            <div id="result-text">
-              {won ? (
-                <>
-                  You got it in <strong>{guesses.length}</strong> guess
-                  {guesses.length > 1 ? "es" : ""}! The answer was{" "}
-                  <span className="legend-answer">{answer.name}</span>.
-                </>
               ) : (
-                <>
-                  Out of guesses! The answer was{" "}
-                  <span className="legend-answer">{answer.name}</span>.
-                </>
+                <div className="mode-banner-badge infinite" aria-hidden="true">
+                  <span className="badge-infinity">∞</span>
+                  <span className="badge-month">Rounds</span>
+                </div>
               )}
             </div>
-            {mode === "unlimited" ? (
-              <button className="play-again-btn" onClick={resetUnlimited}>
-                Play Again
-              </button>
-            ) : (
-              <div className="next-daily">
-                Next Daily in <strong>{countdown}</strong>
-                <button
-                  className="play-again-btn secondary"
-                  onClick={() => requestMode("unlimited")}
-                >
-                  Play Unlimited
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
 
-      <div id="input-area">
-        {showAutocomplete && (
-          <ul id="autocomplete-list">
-            {filteredLegends.map((legend, index) => {
-              const query = guessInput.trim();
-              const lowerName = legend.name.toLowerCase();
-              const lowerQuery = query.toLowerCase();
-              const start = lowerName.indexOf(lowerQuery);
-              const before = start >= 0 ? legend.name.slice(0, start) : legend.name;
-              const match =
-                start >= 0 ? legend.name.slice(start, start + lowerQuery.length) : "";
-              const after =
-                start >= 0 ? legend.name.slice(start + lowerQuery.length) : "";
-              return (
-                <li
-                  key={legend.name}
-                  className={index === activeIndex ? "active" : ""}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    submitGuessByName(legend.name);
-                  }}
-                >
-                  {start >= 0 ? (
+            <div id="game-area">
+              <div className={`guess-row header-row cols-${columns.length}`}>
+                {columns.map((column) => (
+                  <div
+                    key={column}
+                    className={`cell ${column === "name" ? "cell-name" : ""} ${
+                      column === "stats" ? "cell-stats" : ""
+                    }`}
+                  >
+                    {COLUMN_LABELS[column]}
+                  </div>
+                ))}
+              </div>
+
+              <div id="guesses">
+                {guesses.map((guess) => {
+                  const isCorrect = guess.name === answer.name;
+                  return (
+                    <div
+                      key={guess.name}
+                      className={`guess-row cols-${columns.length} ${
+                        isCorrect ? "correct" : ""
+                      }`}
+                    >
+                      {columns.map((column) => renderColumn(column, guess, guess.name))}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="guess-counter">
+                {guesses.length} / {MAX_GUESSES} guesses
+              </div>
+            </div>
+
+            {gameOver && (
+              <div id="result-banner">
+                <div id="result-text">
+                  {won ? (
                     <>
-                      {before}
-                      <span className="match">{match}</span>
-                      {after}
+                      You got it in <strong>{guesses.length}</strong> guess
+                      {guesses.length > 1 ? "es" : ""}! The answer was{" "}
+                      <span className="legend-answer">{answer.name}</span>.
                     </>
                   ) : (
-                    legend.name
+                    <>
+                      Out of guesses! The answer was{" "}
+                      <span className="legend-answer">{answer.name}</span>.
+                    </>
                   )}
-                </li>
-              );
-            })}
-          </ul>
+                </div>
+                {mode === "unlimited" ? (
+                  <button className="play-again-btn" onClick={resetUnlimited}>
+                    Play Again
+                  </button>
+                ) : (
+                  <div className="next-daily">
+                    Next Daily in <strong>{countdown}</strong>
+                    <button
+                      className="play-again-btn secondary"
+                      onClick={() => requestMode("unlimited")}
+                    >
+                      Play Unlimited
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
-
-        <div className="input-wrapper">
-          <input
-            type="text"
-            id="guess-input"
-            className={shakeInput ? "shake" : ""}
-            placeholder="Type a legend name..."
-            value={guessInput}
-            onChange={(event) => setGuessInput(event.target.value)}
-            onKeyDown={onInputKeyDown}
-            disabled={gameOver}
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <button id="guess-btn" onClick={() => submitGuessByName(guessInput)} disabled={gameOver}>
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </button>
-        </div>
       </div>
+
+      {mode !== "duel" && (
+        <div id="input-area">
+          {showAutocomplete && (
+            <ul id="autocomplete-list">
+              {filteredLegends.map((legend, index) => {
+                const query = guessInput.trim();
+                const lowerName = legend.name.toLowerCase();
+                const lowerQuery = query.toLowerCase();
+                const start = lowerName.indexOf(lowerQuery);
+                const before = start >= 0 ? legend.name.slice(0, start) : legend.name;
+                const match =
+                  start >= 0 ? legend.name.slice(start, start + lowerQuery.length) : "";
+                const after =
+                  start >= 0 ? legend.name.slice(start + lowerQuery.length) : "";
+                return (
+                  <li
+                    key={legend.name}
+                    className={index === activeIndex ? "active" : ""}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      submitGuessByName(legend.name);
+                    }}
+                  >
+                    {start >= 0 ? (
+                      <>
+                        {before}
+                        <span className="match">{match}</span>
+                        {after}
+                      </>
+                    ) : (
+                      legend.name
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <div className="input-wrapper">
+            <input
+              type="text"
+              id="guess-input"
+              className={shakeInput ? "shake" : ""}
+              placeholder="Type a legend name..."
+              value={guessInput}
+              onChange={(event) => setGuessInput(event.target.value)}
+              onKeyDown={onInputKeyDown}
+              disabled={gameOver}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button
+              id="guess-btn"
+              onClick={() => submitGuessByName(guessInput)}
+              disabled={gameOver}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

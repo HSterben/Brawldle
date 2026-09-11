@@ -44,6 +44,15 @@
   --accent-strong: var(--mode-accent-strong);
 }
 
+#app.mode-duel {
+  --mode-accent: #ff6b8a;
+  --mode-accent-strong: #e84b6d;
+  --mode-glow: rgba(232, 75, 109, 0.28);
+  --accent: var(--mode-accent);
+  --accent-strong: var(--mode-accent-strong);
+  max-width: 1100px;
+}
+
 body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
@@ -58,21 +67,21 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 1.5rem 1rem 8rem;
+  padding: 0.75rem 1rem 7.5rem;
 }
 
 #app {
   width: 100%;
-  max-width: 740px;
+  max-width: 860px;
 }
 
 header {
   text-align: center;
-  padding: 1.5rem 0 1.2rem;
+  padding: 0.85rem 0 0.7rem;
 }
 
 header h1 {
-  font-size: 2.4rem;
+  font-size: 2.15rem;
   font-weight: 800;
   letter-spacing: 0.15em;
   background: linear-gradient(135deg, #d7e3ff, #86a4ff 65%);
@@ -90,14 +99,15 @@ header h1 {
 
 .controls {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.4rem;
-  margin: 0.85rem 0 0.2rem;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 0.55rem 0 0.35rem;
 }
 
 .difficulty-label {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -106,8 +116,8 @@ header h1 {
 
 .mode-select {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
   width: 100%;
 }
 
@@ -116,15 +126,14 @@ header h1 {
   overflow: hidden;
   text-align: left;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 0.95rem 1rem 1rem;
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem 0.75rem;
   cursor: pointer;
   color: var(--text);
   background:
     linear-gradient(160deg, rgba(255, 255, 255, 0.04), transparent 55%),
     color-mix(in srgb, var(--surface) 88%, transparent);
-  box-shadow: var(--shadow);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .mode-card::before {
@@ -137,7 +146,6 @@ header h1 {
 }
 
 .mode-card:hover:not(:disabled) {
-  transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--border) 50%, #6f84ad);
 }
 
@@ -147,46 +155,51 @@ header h1 {
 
 .mode-select .mode-card:first-child.active {
   border-color: color-mix(in srgb, #f0b429 50%, var(--border));
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(240, 180, 41, 0.12);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f0b429 25%, transparent);
 }
 
 .mode-select .mode-card:first-child.active::before {
   background: linear-gradient(180deg, #f0b429, #d49216);
 }
 
-.mode-select .mode-card:last-child.active {
+.mode-select .mode-card:nth-child(2).active {
   border-color: color-mix(in srgb, #5eead4 50%, var(--border));
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 24px rgba(45, 212, 191, 0.12);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #5eead4 25%, transparent);
 }
 
-.mode-select .mode-card:last-child.active::before {
+.mode-select .mode-card:nth-child(2).active::before {
   background: linear-gradient(180deg, #5eead4, #2dd4bf);
+}
+
+.mode-select .mode-card:nth-child(3).active {
+  border-color: color-mix(in srgb, #ff6b8a 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #ff6b8a 25%, transparent);
+}
+
+.mode-select .mode-card:nth-child(3).active::before {
+  background: linear-gradient(180deg, #ff6b8a, #e84b6d);
 }
 
 .mode-card-kicker {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #8fa0bd;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.1rem;
 }
 
 .mode-card-title {
   display: block;
-  font-size: 1.35rem;
+  font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  line-height: 1.1;
-  margin-bottom: 0.3rem;
+  line-height: 1.15;
 }
 
 .mode-card-copy {
-  display: block;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: var(--text-muted);
+  display: none;
 }
 
 .control-group {
@@ -224,98 +237,55 @@ header h1 {
   color: #0b1020;
 }
 
-.mode-flash {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-content: center;
-  text-align: center;
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  background:
-    radial-gradient(circle at center, color-mix(in srgb, var(--mode-accent) 22%, transparent), transparent 55%),
-    rgba(6, 10, 20, 0.55);
-  backdrop-filter: blur(4px);
-}
-
-.mode-flash-kicker {
-  display: block;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--mode-accent) 80%, #fff);
-  margin-bottom: 0.4rem;
-}
-
-.mode-flash-title {
-  display: block;
-  font-size: clamp(2.8rem, 10vw, 4.8rem);
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #fff;
-  text-shadow: 0 0 40px var(--mode-glow);
-}
-
 .mode-stage {
   width: 100%;
-  perspective: 900px;
-  will-change: transform, opacity, filter;
-  transform-origin: center top;
 }
 
 .mode-banner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  margin: 0.85rem 0 0.9rem;
-  padding: 1rem 1.05rem;
-  border-radius: 16px;
+  gap: 0.75rem;
+  margin: 0.45rem 0 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--mode-accent) 35%, var(--border));
   background:
-    linear-gradient(120deg, color-mix(in srgb, var(--mode-accent) 16%, transparent), transparent 55%),
+    linear-gradient(120deg, color-mix(in srgb, var(--mode-accent) 14%, transparent), transparent 55%),
     color-mix(in srgb, var(--surface) 90%, transparent);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
 .mode-banner-kicker {
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--mode-accent) 75%, #fff);
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
 }
 
 .mode-banner-title {
-  font-size: 1.7rem;
+  font-size: 1.35rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   line-height: 1;
-  margin-bottom: 0.3rem;
 }
 
 .mode-banner-copy {
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  display: none;
 }
 
 .mode-banner-badge {
   flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
   display: grid;
   place-content: center;
   text-align: center;
   background: linear-gradient(180deg, color-mix(in srgb, var(--mode-accent) 85%, #fff), var(--mode-accent-strong));
   color: #1a1408;
-  box-shadow: 0 8px 20px var(--mode-glow);
 }
 
 .mode-banner-badge.infinite {
@@ -325,15 +295,15 @@ header h1 {
 .badge-day,
 .badge-infinity {
   display: block;
-  font-size: 1.35rem;
+  font-size: 1.05rem;
   font-weight: 800;
   line-height: 1;
 }
 
 .badge-month {
   display: block;
-  margin-top: 0.15rem;
-  font-size: 0.62rem;
+  margin-top: 0.1rem;
+  font-size: 0.55rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -341,19 +311,22 @@ header h1 {
 }
 
 #game-area {
+  display: flex;
+  flex-direction: column;
   margin-top: 0;
-  padding: 0.55rem;
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 18%, var(--border));
+  padding: 0.85rem;
+  min-height: 340px;
+  border: 1px solid color-mix(in srgb, var(--mode-accent) 22%, var(--border));
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
   box-shadow: var(--shadow);
   backdrop-filter: blur(6px);
 }
 
 .guess-row {
   display: grid;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 7px;
+  margin-bottom: 7px;
 }
 
 .guess-row.cols-6 {
@@ -369,12 +342,12 @@ header h1 {
 }
 
 .header-row .cell {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: #aab7d1;
-  padding: 0.5rem 0.5rem;
+  padding: 0.55rem 0.5rem;
   text-align: center;
   background: transparent;
 }
@@ -388,11 +361,11 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.6rem 0.4rem;
+  padding: 0.7rem 0.45rem;
   border-radius: 10px;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  min-height: 50px;
+  min-height: 56px;
   text-align: center;
   word-break: break-word;
   line-height: 1.2;
@@ -510,7 +483,8 @@ header h1 {
   text-align: center;
   font-size: 0.75rem;
   color: #a4b1ca;
-  margin-top: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
   font-weight: 600;
 }
 
@@ -610,7 +584,7 @@ header h1 {
   display: flex;
   gap: 8px;
   width: 100%;
-  max-width: 480px;
+  max-width: 560px;
 }
 
 #guess-input {
@@ -674,7 +648,7 @@ header h1 {
 #autocomplete-list {
   list-style: none;
   width: 100%;
-  max-width: 480px;
+  max-width: 560px;
   max-height: 220px;
   overflow-y: auto;
   background: var(--input-bg);
@@ -714,6 +688,7 @@ header h1 {
   }
 
   .mode-select {
+    grid-template-columns: 1fr;
     gap: 0.5rem;
   }
 
@@ -740,6 +715,10 @@ header h1 {
   .mode-banner-badge {
     width: 56px;
     height: 56px;
+  }
+
+  .duel-boards {
+    grid-template-columns: 1fr;
   }
 
   .guess-row.cols-6 {
@@ -772,4 +751,275 @@ header h1 {
   header h1 {
     font-size: 1.8rem;
   }
+}
+
+/* —— 1v1 duel —— */
+.duel-root {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding-bottom: 6rem;
+}
+
+.duel-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.duel-topbar-title {
+  text-align: center;
+}
+
+.duel-topbar-title strong {
+  display: block;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.duel-error {
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #ff6b8a 45%, var(--border));
+  background: color-mix(in srgb, #ff6b8a 12%, var(--surface));
+  color: #ffd0da;
+  font-size: 0.85rem;
+}
+
+.duel-status {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+
+.duel-setup,
+.duel-lobby,
+.duel-picking {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.duel-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8fa0bd;
+}
+
+.duel-field input,
+.duel-join-row input,
+.duel-inline-input input {
+  border: 1px solid #30415f;
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.7rem 1rem;
+  outline: none;
+}
+
+.duel-setup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.duel-join-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.duel-join-row input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+}
+
+.duel-invite-box {
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--mode-accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  overflow-x: auto;
+}
+
+.duel-invite-box code {
+  font-size: 0.78rem;
+  color: #d7e3ff;
+}
+
+.duel-host-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.duel-rule-help {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 28rem;
+}
+
+.duel-match-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8fa0bd;
+  margin-bottom: 0.65rem;
+}
+
+.duel-boards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.duel-board {
+  padding: 0.55rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--mode-accent) 18%, var(--border));
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: var(--shadow);
+  min-height: 180px;
+}
+
+.duel-board.foe {
+  border-style: dashed;
+  opacity: 0.95;
+}
+
+.duel-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  padding: 0.15rem 0.2rem;
+}
+
+.duel-board-head h3 {
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
+.duel-board-kicker {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #8fa0bd;
+}
+
+.duel-timer {
+  min-width: 3rem;
+  text-align: center;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  color: #0b1020;
+}
+
+.duel-timer.ghost {
+  background: color-mix(in srgb, var(--surface-light) 90%, transparent);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.duel-timer.urgent {
+  animation: duelPulse 0.7s ease infinite;
+}
+
+@keyframes duelPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.blind-mark {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.duel-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  padding: 1rem 0.5rem;
+}
+
+.duel-input-block {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(10px);
+}
+
+.duel-inline-input {
+  width: 100%;
+  max-width: 560px;
+}
+
+.duel-autocomplete {
+  list-style: none;
+  width: 100%;
+  max-width: 560px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow);
+}
+
+.duel-autocomplete li {
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #d9e3f7;
+}
+
+.duel-autocomplete li.active,
+.duel-autocomplete li:hover {
+  background: var(--surface-light);
+}
+
+.duel-result {
+  margin-top: 0.85rem;
 }

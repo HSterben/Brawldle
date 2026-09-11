@@ -5,18 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "duel": "tsx server/index.ts",
+    "dev:all": "concurrently -k -n web,duel -c cyan,magenta \"vite\" \"tsx server/index.ts\"",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "tsx server/index.ts",
+    "start:duel": "tsx server/index.ts"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
+    "concurrently": "^10.0.5",
     "gsap": "^3.15.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "tsx": "^4.23.13",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3"
