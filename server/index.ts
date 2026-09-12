@@ -24,11 +24,10 @@ import type {
   DuelPlayerPublic,
   ServerMessage,
 } from "../src/duel/protocol.ts";
-import { MAX_LOBBY_PLAYERS } from "../src/duel/protocol.ts";
+import { MAX_LOBBY_PLAYERS, normalizeLobbyCode } from "../src/duel/protocol.ts";
 
 const PORT = Number(process.env.PORT || 3001);
 const legends = legendsData as Legend[];
-const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 type Player = {
   id: string;
@@ -68,19 +67,15 @@ function send(ws: WebSocket, message: ServerMessage) {
 }
 
 function randomCode() {
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
-  }
-  return code;
+  return String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
 }
 
 function uniqueCode() {
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 80; i++) {
     const code = randomCode();
     if (!lobbies.has(code)) return code;
   }
-  return `${randomCode()}${randomCode()}`.slice(0, 6);
+  return randomCode();
 }
 
 function playerName(preferred?: string, fallback = "Player") {
@@ -284,7 +279,11 @@ function createLobby(ws: WebSocket, name?: string) {
 }
 
 function joinLobby(ws: WebSocket, codeRaw: string, name?: string) {
-  const code = codeRaw.trim().toUpperCase();
+  const code = normalizeLobbyCode(codeRaw);
+  if (code.length !== 6) {
+    send(ws, { type: "error", message: "Enter a 6-digit lobby code." });
+    return;
+  }
   const lobby = lobbies.get(code);
   if (!lobby) {
     send(ws, { type: "error", message: "Lobby not found." });

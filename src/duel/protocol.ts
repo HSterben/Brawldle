@@ -11,6 +11,17 @@ export type DuelPhase = "waiting" | "picking" | "playing" | "finished";
 
 export const MAX_LOBBY_PLAYERS = 8;
 
+/** Keep digits only (ignores # and other characters). */
+export function normalizeLobbyCode(raw: string): string {
+  return String(raw || "").replace(/\D/g, "").slice(0, 6);
+}
+
+/** Display form, e.g. #482917 */
+export function formatLobbyCode(code: string): string {
+  const digits = normalizeLobbyCode(code);
+  return digits ? `#${digits}` : "";
+}
+
 export type DuelPlayerPublic = {
   id: string;
   name: string;

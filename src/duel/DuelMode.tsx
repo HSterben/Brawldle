@@ -11,7 +11,7 @@ import type {
   PublicGuessRow,
 } from "../game/types";
 import type { ClientMessage, DuelLobbyPublic, DuelPlayerPublic, ServerMessage } from "./protocol";
-import { MAX_LOBBY_PLAYERS } from "./protocol";
+import { MAX_LOBBY_PLAYERS, formatLobbyCode, normalizeLobbyCode } from "./protocol";
 
 const legends = legendsData as Legend[];
 
@@ -388,15 +388,6 @@ function PlayersDrawer({
           })}
         </ul>
       </aside>
-
-      {open && (
-        <button
-          type="button"
-          className="duel-players-backdrop"
-          aria-label="Close players panel"
-          onClick={onToggle}
-        />
-      )}
     </>
   );
 }
@@ -420,8 +411,8 @@ export default function DuelMode({ onExit }: DuelModeProps) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const fromLink = params.get("duel");
-    if (fromLink) setJoinCode(fromLink.toUpperCase());
+    const fromLink = normalizeLobbyCode(params.get("duel") || "");
+    if (fromLink) setJoinCode(fromLink);
 
     let opened = false;
     let cancelled = false;
@@ -433,7 +424,7 @@ export default function DuelMode({ onExit }: DuelModeProps) {
       opened = true;
       setStatus("connected");
       setError(null);
-      if (fromLink && !autoJoinDone.current) {
+      if (fromLink.length === 6 && !autoJoinDone.current) {
         autoJoinDone.current = true;
         send(ws, { type: "join", code: fromLink, name: displayName || undefined });
       }
@@ -555,9 +546,12 @@ export default function DuelMode({ onExit }: DuelModeProps) {
             <div className="duel-join-row">
               <input
                 value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
-                placeholder="CODE"
+                onChange={(event) => setJoinCode(normalizeLobbyCode(event.target.value))}
+                placeholder="123456"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 maxLength={6}
+                aria-label="Lobby code"
               />
               <button
                 type="button"
@@ -593,7 +587,7 @@ export default function DuelMode({ onExit }: DuelModeProps) {
             <div className="mode-banner">
               <div className="mode-banner-text">
                 <p className="mode-banner-kicker">Lobby</p>
-                <h2 className="mode-banner-title">{lobby.code}</h2>
+                <h2 className="mode-banner-title">{formatLobbyCode(lobby.code)}</h2>
                 <p className="mode-banner-copy">
                   {lobby.players.length > 1
                     ? `${lobby.players.length} players in lobby · ${readyCount} ready`
